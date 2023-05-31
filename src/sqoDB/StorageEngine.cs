@@ -147,11 +147,6 @@ namespace sqoDB
 
         public StorageEngine(string path )
         {
-       
-            if (!SqoLicense.LicenseValid())
-            {
-                throw new InvalidLicenseException("License not valid!");
-            }
             this.path = path;
             SerializerFactory.ClearCache(path);
             this.rawSerializer=new RawdataSerializer(this, useElevatedTrust);
@@ -160,11 +155,6 @@ namespace sqoDB
        
         public StorageEngine(string path,bool useElevatedTrust)
         {
-
-            if (!sqoDB.Utilities.SqoLicense.LicenseValid())
-            {
-                throw new InvalidLicenseException("License not valid!");
-            }
             this.path = path;
             SerializerFactory.ClearCache(path);
             this.useElevatedTrust = useElevatedTrust;

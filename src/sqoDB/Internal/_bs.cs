@@ -104,14 +104,14 @@ namespace sqoDB.Internal
         /// </summary>
         public static bool _hsy()
         {
-            return sqoDB.Utilities.SqoLicense.hasSync;
+            return true;
         }
         /// <summary>
         /// Do NOT use it!, it is used only internally
         /// </summary>
         public static bool _hamssy()
         {
-            return sqoDB.Utilities.SqoLicense.hasAMSSync;
+            return true;
         }
     }
 }

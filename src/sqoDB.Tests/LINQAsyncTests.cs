@@ -15,11 +15,7 @@ namespace SiaqodbUnitTests
     public class LINQAsyncTests
     {
         string dbFolder = TestUtils.GetTempPath();
-
-        public LINQAsyncTests()
-        {
-              sqoDB.SiaqodbConfigurator.SetLicense(@" qU3TtvA4T4L30VSlCCGUTSgbmx5WI47jJrL1WHN2o/gg5hnL45waY5nSxqWiFmnG");
-        }	
+        
         [Test]
         public async Task TestBasicQuery()
         {

@@ -54,7 +54,6 @@
     <Compile Include="JaggedAsyncTests.cs" />
     <Compile Include="JaggedTests.cs" />
     <Compile Include="JoinTest.cs" />
-    <Compile Include="LicensesTests.cs" />
     <Compile Include="LINQAsyncTests.cs" />
     <Compile Include="LINQTest.cs" />
     <Compile Include="ObjectTableTest.cs" />

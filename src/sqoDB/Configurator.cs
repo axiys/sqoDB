@@ -25,7 +25,7 @@ namespace sqoDB
         internal string encryptionPWD;
         internal BuildInAlgorithm encAlgorithm;
         internal event EventHandler LoadRelatedObjectsPropetyChanged;
-        internal string LicenseKey;
+
         /// <summary>
         /// Add an index for a field or automatic property of a certain Type,an Index can be added also by using Attribute: sqoDB.Attributes.Index;
         /// both ways of adding index are similar
@@ -262,15 +262,7 @@ namespace sqoDB
             this.OnLoadRelatedObjectsPropetyChanged(EventArgs.Empty);
 
         }
-        /// <summary>
-        /// Set the license key
-        /// </summary>
-        /// <param name="licenseKey">License key</param>
-        public void SetLicense(string licenseKey)
-        {
-            this.LicenseKey = licenseKey;
-        }
-
+        
         /// <summary>
         /// Set true to raise Loading/Loaded events
         /// </summary>

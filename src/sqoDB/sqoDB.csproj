@@ -84,7 +84,6 @@
     <Compile Include="Encryption\XTEAEncryptor.cs" />
     <Compile Include="Events.cs" />
     <Compile Include="Exceptions\IndexCorruptedException.cs" />
-    <Compile Include="Exceptions\InvalidLicenseException.cs" />
     <Compile Include="Exceptions\LINQUnoptimizeException.cs" />
     <Compile Include="Exceptions\NotAsyncException.cs" />
     <Compile Include="Exceptions\NotSupportedTypeException.cs" />
@@ -173,7 +172,6 @@
     <Compile Include="Utilities\ObjectTable.cs" />
     <Compile Include="Utilities\ObjectTableHelper.cs" />
     <Compile Include="Utilities\Path.cs" />
-    <Compile Include="Utilities\SqoLicense.cs" />
     <Compile Include="Utilities\SqoSortableItem.cs" />
     <Compile Include="Extensions\MemberInfoExtensions.cs" />
     <Compile Include="Extensions\TypeExtensions.cs" />

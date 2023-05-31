@@ -80,12 +80,6 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TrialLicenseFrm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="TrialLicenseFrm.Designer.cs">
-      <DependentUpon>TrialLicenseFrm.cs</DependentUpon>
-    </Compile>
     <Compile Include="UCObjects.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -122,16 +116,12 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <EmbeddedResource Include="TrialLicenseFrm.resx">
-      <DependentUpon>TrialLicenseFrm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="UCObjects.resx">
       <DependentUpon>UCObjects.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UCQuery.resx">
       <DependentUpon>UCQuery.cs</DependentUpon>
     </EmbeddedResource>
-    <None Include="CSharp-Mode-VSEnh.xshd" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

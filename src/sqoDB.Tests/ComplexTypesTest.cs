@@ -15,12 +15,6 @@ namespace sqoDBDB.Tests.M.S
     {
         private string objPath = TestUtils.GetTempPath();
 
-        public ComplexTypesTest()
-        {
-            SiaqodbConfigurator.EncryptedDatabase = true;
-              sqoDB.SiaqodbConfigurator.SetLicense(@" qU3TtvA4T4L30VSlCCGUTSgbmx5WI47jJrL1WHN2o/gg5hnL45waY5nSxqWiFmnG");
-        }
-        
         [Test]
         public void TestStore()
         {

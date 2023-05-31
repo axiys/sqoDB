@@ -18,14 +18,6 @@ namespace sqoDB.Cache
         }
         public  void AddType(Type type, SqoTypeInfo ti)
         {
-            if (sqoDB.Utilities.SqoLicense.isStarterEdition)
-            {
-                if (type != typeof(sqoDB.MetaObjects.RawdataInfo) && type != typeof(sqoDB.Indexes.IndexInfo2) && ti.Header.numberOfRecords > 100)
-                {
-                    throw new sqoDB.Exceptions.InvalidLicenseException("Siaqodb Starter edition may store maximum 100 objects per type!");
-                }
-
-            }
             cacheOfTypes[type] = ti;
             this.SetMaxTID(ti.Header.TID);
             if (!sqoDB.Utilities.MetaHelper.TypeHasOID(type))

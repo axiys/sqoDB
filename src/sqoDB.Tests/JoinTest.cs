@@ -18,9 +18,7 @@ namespace sqoDBDB.Tests
 
         public JoinTest34()
         {
-            //SiaqodbConfigurator.SetTrialLicense("8roM1WSU/nmeKWoIahigyWMQWO6UENLECJGz6PT8O4I=");
             SiaqodbConfigurator.EncryptedDatabase = true;
-            sqoDB.SiaqodbConfigurator.SetLicense(@" qU3TtvA4T4L30VSlCCGUTSgbmx5WI47jJrL1WHN2o/gg5hnL45waY5nSxqWiFmnG");
         }
 
         private TestContext testContextInstance;

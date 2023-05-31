@@ -481,14 +481,6 @@ namespace sqoDB
            
 
         }
-        /// <summary>
-        /// Set the license key
-        /// </summary>
-        /// <param name="licenseKey">License key</param>
-        public static void SetLicense(string licenseKey)
-        {
-            sqoDB.Utilities.SqoLicense.LicenseValid(licenseKey);
-        }
 
         /// <summary>
         /// Set true to raise Loading/Loaded events
@@ -655,10 +647,7 @@ namespace sqoDB
                     LoadRelatedObjects(item, !config.LazyLoaded[item]);
                 }
             }
-            if (!string.IsNullOrEmpty(config.LicenseKey))
-            {
-                SetLicense(config.LicenseKey);
-            }
+
             if (config.DocumentSerializer != null)
             {
                 SetDocumentSerializer(config.DocumentSerializer);
