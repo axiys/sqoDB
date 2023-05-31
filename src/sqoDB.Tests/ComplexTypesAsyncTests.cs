@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Text;
-using System.Linq;
 using System.Collections.Generic;
-
-using sqoDB;
 using System.Threading.Tasks;
-using sqoDB.Transactions;
 using NUnit.Framework;
+using sqoDB;
 using sqoDBDB.Tests;
 
 namespace SiaqodbUnitTests
@@ -14,7 +10,7 @@ namespace SiaqodbUnitTests
     [TestFixture]
     public class ComplexTypesAsyncTests
     {
-        string dbFolder = TestUtils.GetTempPath();
+        private readonly string dbFolder = TestUtils.GetTempPath();
 
         public ComplexTypesAsyncTests()
         {
@@ -24,13 +20,14 @@ namespace SiaqodbUnitTests
         [Test]
         public async Task TestStore()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<A>();
             await s_db.DropTypeAsync<B>();
             await s_db.DropTypeAsync<C>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                A a = new A();
+                var a = new A();
                 a.aId = i;
                 a.BVar = new B();
                 a.BVar.bId = 11;
@@ -42,10 +39,10 @@ namespace SiaqodbUnitTests
                     await s_db.StoreObjectAsync(a);
                 }
                 catch (Exception ex)
-                { 
-                
+                {
                 }
             }
+
             await s_db.FlushAsync();
 
             IList<A> allA = await s_db.LoadAllAsync<A>();
@@ -81,18 +78,19 @@ namespace SiaqodbUnitTests
             await s_db.FlushAsync();
             IList<A> allA2 = await s_db.LoadAllAsync<A>();
             Assert.AreEqual(200, allA2[1].BVar.Ci.cId);
-
         }
+
         [Test]
         public async Task TestRead()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<A>();
             await s_db.DropTypeAsync<B>();
             await s_db.DropTypeAsync<C>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                A a = new A();
+                var a = new A();
                 a.aId = i;
                 a.BVar = new B();
                 a.BVar.bId = 11;
@@ -101,47 +99,49 @@ namespace SiaqodbUnitTests
                 a.BVar.Ci.cId = i;
                 await s_db.StoreObjectAsync(a);
             }
+
             await s_db.FlushAsync();
-            var q = await  (from A a in s_db
-                     where a.BVar.bId == 11 && a.BVar.Ci.cId == 5
-                     select a).ToListAsync();
+            var q = await (from A a in s_db
+                where a.BVar.bId == 11 && a.BVar.Ci.cId == 5
+                select a).ToListAsync();
 
             Assert.AreEqual(1, q.Count);
             Assert.AreEqual(5, q[0].BVar.Ci.cId);
 
             var q1 = await (from A a in s_db
-                      where a.aId == 5
-                      select a.BVar).ToListAsync();
+                where a.aId == 5
+                select a.BVar).ToListAsync();
             Assert.AreEqual(1, q1.Count);
             Assert.AreEqual(5, q1[0].Ci.cId);
 
             var q2 = await (from A a in s_db
-                      where a.aId == 5
-                      select new { bVar = a.BVar, cVar = a.BVar.Ci }).ToListAsync();
+                where a.aId == 5
+                select new { bVar = a.BVar, cVar = a.BVar.Ci }).ToListAsync();
             Assert.AreEqual(1, q2.Count);
             Assert.AreEqual(5, q2[0].cVar.cId);
-
-            
         }
+
         [Test]
         public async Task TestTransaction()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<A>();
             await s_db.DropTypeAsync<B>();
             await s_db.DropTypeAsync<C>();
-            ITransaction transaction = s_db.BeginTransaction();
-            for (int i = 0; i < 10; i++)
+            var transaction = s_db.BeginTransaction();
+            for (var i = 0; i < 10; i++)
             {
-                A a = new A();
+                var a = new A();
                 a.aId = i;
                 a.BVar = new B();
                 a.BVar.bId = 11;
                 a.BVar.Ci = new C();
                 a.BVar.Ci.ACircular = a;
                 a.BVar.Ci.cId = i;
-                await s_db.StoreObjectAsync(a,transaction);
+                await s_db.StoreObjectAsync(a, transaction);
             }
+
             await transaction.CommitAsync();
 
             IList<A> allA = await s_db.LoadAllAsync<A>();
@@ -164,9 +164,9 @@ namespace SiaqodbUnitTests
             allA[0].aId = 100;
             allA[0].BVar.bId = 100;
             allA[0].BVar.Ci.cId = 100;
-           
-            ITransaction transaction1 = s_db.BeginTransaction();
-            await s_db.StoreObjectAsync(allA[0],transaction1);
+
+            var transaction1 = s_db.BeginTransaction();
+            await s_db.StoreObjectAsync(allA[0], transaction1);
             await transaction1.CommitAsync();
 
             IList<A> allA1 = await s_db.LoadAllAsync<A>();
@@ -175,23 +175,22 @@ namespace SiaqodbUnitTests
             Assert.AreEqual(100, allA1[0].BVar.Ci.cId);
 
             allC[1].cId = 200;
-            ITransaction transaction2 = s_db.BeginTransaction();
-            
-            await s_db.StoreObjectAsync(allC[1],transaction2);
-            s_db.DeleteAsync(allA1[9],transaction2);
+            var transaction2 = s_db.BeginTransaction();
+
+            await s_db.StoreObjectAsync(allC[1], transaction2);
+            s_db.DeleteAsync(allA1[9], transaction2);
             s_db.DeleteAsync(allA1[8].BVar, transaction2);
             await transaction2.CommitAsync();
             IList<A> allA2 = await s_db.LoadAllAsync<A>();
             IList<B> allB2 = await s_db.LoadAllAsync<B>();
             IList<C> allC2 = await s_db.LoadAllAsync<C>();
-            
+
             Assert.AreEqual(200, allA2[1].BVar.Ci.cId);
             Assert.AreEqual(9, allA2.Count);
             Assert.AreEqual(9, allB2.Count);
             Assert.AreEqual(10, allC2.Count);
-
-
         }
+
         [Test]
         public async Task TestInclude()
         {
@@ -199,13 +198,14 @@ namespace SiaqodbUnitTests
             SiaqodbConfigurator.LoadRelatedObjects<B>(false);
             try
             {
-                Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+                var s_db = new Siaqodb();
+                await s_db.OpenAsync(dbFolder);
                 await s_db.DropTypeAsync<A>();
                 await s_db.DropTypeAsync<B>();
                 await s_db.DropTypeAsync<C>();
-                for (int i = 0; i < 10; i++)
+                for (var i = 0; i < 10; i++)
                 {
-                    A a = new A();
+                    var a = new A();
                     a.aId = i;
                     a.BVar = new B();
                     a.BVar.bId = 11;
@@ -214,31 +214,35 @@ namespace SiaqodbUnitTests
                     a.BVar.Ci.cId = i;
                     await s_db.StoreObjectAsync(a);
                 }
+
                 await s_db.FlushAsync();
                 IList<A> allA = await s_db.LoadAllAsync<A>();
                 IList<B> allB = await s_db.LoadAllAsync<B>();
-                for (int i = 0; i < 10; i++)
+                for (var i = 0; i < 10; i++)
                 {
                     Assert.IsNull(allA[i].BVar);
                     Assert.IsNull(allB[i].Ci);
                 }
-                var q = await (s_db.Cast<A>().Where(a => a.OID > 5).Include("BVar")).ToListAsync();
 
-                foreach (A a in q)
+                var q = await s_db.Cast<A>().Where(a => a.OID > 5).Include("BVar").ToListAsync();
+
+                foreach (var a in q)
                 {
                     Assert.IsNotNull(a.BVar);
                     Assert.IsNull(a.BVar.Ci);
                 }
-                var q1 = await (s_db.Cast<A>().Where(a => a.OID > 5).Include("BVar").Include("BVar.Ci")).ToListAsync();
 
-                foreach (A a in q1)
+                var q1 = await s_db.Cast<A>().Where(a => a.OID > 5).Include("BVar").Include("BVar.Ci").ToListAsync();
+
+                foreach (var a in q1)
                 {
                     Assert.IsNotNull(a.BVar);
                     Assert.IsNotNull(a.BVar.Ci);
                 }
-                var q2 = await (s_db.Cast<A>().Where(a => a.OID > 5).Include("BVar")).ToListAsync();
 
-                foreach (A a in q2)
+                var q2 = await s_db.Cast<A>().Where(a => a.OID > 5).Include("BVar").ToListAsync();
+
+                foreach (var a in q2)
                 {
                     Assert.IsNotNull(a.BVar);
                     Assert.IsNull(a.BVar.Ci);
@@ -250,30 +254,33 @@ namespace SiaqodbUnitTests
                 SiaqodbConfigurator.LoadRelatedObjects<B>(true);
             }
         }
+
         [Test]
         public async Task TestComplexLists()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<TapRecord>();
             await s_db.DropTypeAsync<D>();
-          
-            for (int i = 0; i < 10; i++)
+
+            for (var i = 0; i < 10; i++)
             {
-                D d = new D();
+                var d = new D();
                 d.tap = new TapRecord();
-                d.tap2 = new TapRecord() { userName = "newelist" };
+                d.tap2 = new TapRecord { userName = "newelist" };
                 d.TapList = new List<TapRecord>();
                 d.TapList.Add(d.tap);
                 d.TapList.Add(new TapRecord());
-                d.TapList2.Add(new TapRecord() { userName = "newelist" });
+                d.TapList2.Add(new TapRecord { userName = "newelist" });
                 await s_db.StoreObjectAsync(d);
             }
+
             await s_db.FlushAsync();
             IList<D> dlis = await s_db.LoadAllAsync<D>();
             IList<TapRecord> dtap = await s_db.LoadAllAsync<TapRecord>();
 
             Assert.AreEqual(10, dlis.Count);
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 Assert.AreEqual(2, dlis[i].TapList.Count);
                 Assert.AreEqual(1, dlis[i].TapList2.Count);
@@ -283,52 +290,54 @@ namespace SiaqodbUnitTests
             }
 
             var q = await (from D d in s_db
-                    where d.TapList2.Contains(new TapRecord() { userName = "newelist" })
-                    select d).ToListAsync();
+                where d.TapList2.Contains(new TapRecord { userName = "newelist" })
+                select d).ToListAsync();
             Assert.AreEqual(10, q.Count);
 
             var q2 = await (from D d in s_db
-                     where d.tap==new TapRecord() && d.tap2==new TapRecord() { userName = "newelist" }
-                     select d).ToListAsync();
+                where d.tap == new TapRecord() && d.tap2 == new TapRecord { userName = "newelist" }
+                select d).ToListAsync();
             Assert.AreEqual(10, q2.Count);
-            
         }
+
         [Test]
         public async Task TestWhereComplexObjectCompare()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<TapRecord>();
             await s_db.DropTypeAsync<D>();
 
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                D d = new D();
+                var d = new D();
                 d.tap = new TapRecord();
-                d.tap2 = new TapRecord() { userName = "newelist" };
+                d.tap2 = new TapRecord { userName = "newelist" };
                 d.TapList = new List<TapRecord>();
                 d.TapList.Add(d.tap);
                 d.TapList.Add(new TapRecord());
-                d.TapList2.Add(new TapRecord() { userName = "newelist" });
+                d.TapList2.Add(new TapRecord { userName = "newelist" });
                 await s_db.StoreObjectAsync(d);
             }
+
             await s_db.FlushAsync();
             var q = await (from D d in s_db
-                     where d.tap2 == new TapRecord { userName = "newelist" }
-                     select d).ToListAsync();
+                where d.tap2 == new TapRecord { userName = "newelist" }
+                select d).ToListAsync();
             Assert.AreEqual(10, q.Count);
-
-           
         }
+
         [Test]
         public async Task TestDeleteNestedObject()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<A>();
             await s_db.DropTypeAsync<B>();
             await s_db.DropTypeAsync<C>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                A a = new A();
+                var a = new A();
                 a.aId = i;
                 a.BVar = new B();
                 a.BVar.bId = 11;
@@ -337,24 +346,25 @@ namespace SiaqodbUnitTests
                 a.BVar.Ci.cId = i;
                 await s_db.StoreObjectAsync(a);
             }
+
             await s_db.FlushAsync();
             var q = await (from A a in s_db
-                     where a.BVar.bId == 11 && a.BVar.Ci.cId == 5
-                     select a).ToListAsync();
+                where a.BVar.bId == 11 && a.BVar.Ci.cId == 5
+                select a).ToListAsync();
 
             Assert.AreEqual(1, q.Count);
-           
+
             await s_db.DeleteAsync(q[0].BVar.Ci);
 
             await s_db.FlushAsync();
             q = await (from A a in s_db
-                 where a.BVar.bId == 11 && a.BVar.Ci.cId == 5
-                 select a).ToListAsync();
+                where a.BVar.bId == 11 && a.BVar.Ci.cId == 5
+                select a).ToListAsync();
 
             Assert.AreEqual(0, q.Count);
             q = await (from A a in s_db
-                 where a.BVar.bId == 11 
-                 select a).ToListAsync();
+                where a.BVar.bId == 11
+                select a).ToListAsync();
 
             Assert.AreEqual(10, q.Count);
             Assert.IsNull(q[5].BVar.Ci);
@@ -366,46 +376,50 @@ namespace SiaqodbUnitTests
             IList<C> lsC = await s_db.LoadAllAsync<C>();
             IList<B> lsB = await s_db.LoadAllAsync<B>();
             IList<A> lsA1 = await s_db.LoadAllAsync<A>();
-            
+
             Assert.AreEqual(9, lsC.Count);
             Assert.AreEqual(9, lsB.Count);
             Assert.AreEqual(10, lsA1.Count);
-
         }
+
         [Test]
         public async Task TestListOfLists()
         {
-
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<MyList<int>>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                MyList<int> myList = new MyList<int>();
+                var myList = new MyList<int>();
                 myList.TheList = new List<ListContainer<int>>();
-                ListContainer<int> innerList = new ListContainer<int>();
+                var innerList = new ListContainer<int>();
                 innerList.List = new List<int>();
                 innerList.List.Add(i);
-                innerList.List.Add(i+1);
+                innerList.List.Add(i + 1);
                 myList.TheList.Add(innerList);
                 await s_db.StoreObjectAsync(myList);
             }
+
             await s_db.FlushAsync();
             s_db.Close();
-            s_db =new Siaqodb(); await s_db.OpenAsync(dbFolder);
-            IList<MyList<int>> list=  await s_db.LoadAllAsync<MyList<int>>();
+            s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
+            IList<MyList<int>> list = await s_db.LoadAllAsync<MyList<int>>();
             Assert.AreEqual(10, list.Count);
             Assert.AreEqual(2, list[1].TheList[0].List.Count);
         }
+
         [Test]
         public async Task TestStorePartialNull()
         {
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<A>();
             await s_db.DropTypeAsync<B>();
             await s_db.DropTypeAsync<C>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                A a = new A();
+                var a = new A();
                 a.aId = i;
                 a.BVar = new B();
                 a.BVar.bId = 11;
@@ -414,6 +428,7 @@ namespace SiaqodbUnitTests
                 a.BVar.Ci.cId = i;
                 await s_db.StoreObjectAsync(a);
             }
+
             await s_db.FlushAsync();
             IList<A> lsA = await s_db.LoadAllAsync<A>();
             lsA[0].BVar.Ci = null;
@@ -422,88 +437,97 @@ namespace SiaqodbUnitTests
             IList<A> lsA1 = await s_db.LoadAllAsync<A>();
             Assert.IsNull(lsA1[0].BVar.Ci);
         }
+
         [Test]
         public async Task TestStorePartialOnIndexed()
         {
             SiaqodbConfigurator.AddIndex("cId", typeof(C));
 
-            Siaqodb s_db = new Siaqodb(); await s_db.OpenAsync(dbFolder);
+            var s_db = new Siaqodb();
+            await s_db.OpenAsync(dbFolder);
             await s_db.DropTypeAsync<A>();
             await s_db.DropTypeAsync<B>();
             await s_db.DropTypeAsync<C>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
-                A a = new A();
+                var a = new A();
                 a.aId = i;
                 a.BVar = new B();
                 a.BVar.bId = 11;
                 a.BVar.Ci = new C();
                 a.BVar.Ci.ACircular = a;
-                a.BVar.Ci.cId = i%2;
+                a.BVar.Ci.cId = i % 2;
                 await s_db.StoreObjectAsync(a);
             }
+
             await s_db.FlushAsync();
             IList<A> lsA = await s_db.LoadAllAsync<A>();
             lsA[0].BVar.Ci.cId = 3;
             await s_db.StoreObjectPartiallyAsync(lsA[0].BVar, "Ci");
             var q = await (from C c in s_db
-                     where c.cId == 3
-                     select c).ToListAsync();
+                where c.cId == 3
+                select c).ToListAsync();
             Assert.AreEqual(1, q.Count);
-
         }
     }
+
     public class A
     {
+        public int aId;
         public int OID { get; set; }
         public B BVar { get; set; }
-        public int aId;
     }
+
     public class C
     {
-        public int OID { get; set; }
-        public int cId;
         public A ACircular;
+        public int cId;
+        public int OID { get; set; }
     }
+
     public class BB
     {
-        public int OID { get; set; }
         public int bId;
+        public int OID { get; set; }
         public C Ci { get; set; }
     }
-    public class B:BB
+
+    public class B : BB
     {
-        public int bInt; 
+        public int bInt;
     }
+
     public class TapRecord
     {
-        public string userName;
         public int TotalScore;
+        public string userName;
         public int OID { get; set; }
 
         public async Task AddScore(int ballType)
         {
             TotalScore++;
         }
-
     }
+
     public class D
     {
-        public int OID { get; set; }
         public TapRecord tap;
+        public TapRecord tap2 = new TapRecord { userName = "neww" };
         public List<TapRecord> TapList;
-        public int test = 3;
-        public TapRecord tap2 = new TapRecord() { userName = "neww" };
         public List<TapRecord> TapList2 = new List<TapRecord>();
+        public int test = 3;
+        public int OID { get; set; }
     }
+
     public class ListContainer<T>
     {
-        public int OID { get; set; }
         public List<T> List;
+        public int OID { get; set; }
     }
+
     public class MyList<T>
     {
-        public int OID { get; set; }
         public List<ListContainer<T>> TheList;
+        public int OID { get; set; }
     }
 }

@@ -13,11 +13,11 @@ namespace sqoDB
 {
     internal class QueryTranslator : ExpressionVisitor
     {
-        private ICriteria criteria;
         private readonly Dictionary<Expression, ICriteria> criteriaValues = new Dictionary<Expression, ICriteria>();
-        private Where currentWhere;
         private readonly StorageEngine engine;
         private readonly SqoTypeInfo ti;
+        private ICriteria criteria;
+        private Where currentWhere;
 
         internal QueryTranslator(StorageEngine engine, SqoTypeInfo ti)
         {

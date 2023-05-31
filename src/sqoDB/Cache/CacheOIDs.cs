@@ -69,10 +69,8 @@ namespace sqoDB.Cache
 
             var pi = ti.Type.GetProperty("OID", flags);
             if (pi == null)
-            {
                 //throw new SiaqodbException("Object of Type:" + ti.ToString() + " does not have property OID, define it first!");
                 return GetOID(ti, obj);
-            }
 #if UNITY3D
                     return (int)pi.GetGetMethod().Invoke(obj, null);
 #else

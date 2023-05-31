@@ -13,9 +13,9 @@ namespace sqoDB
 {
     public class SelectQueryWhere<T> : ISqoQuery<T>
     {
-        private IEnumerable<T> enumerator;
         private readonly Func<T, bool> predicate;
         private readonly ISqoQuery<T> query;
+        private IEnumerable<T> enumerator;
         public SelectQueryWhere(Func<T, bool> predicate, ISqoQuery<T> query)
         {
             this.predicate = predicate;
@@ -286,9 +286,9 @@ namespace sqoDB
 
     public class SelectQuery<T, V> : ISqoQuery<V>
     {
-        private IEnumerable<V> enumerator;
         private readonly ISqoQuery<T> query;
         private readonly Func<T, V> selector;
+        private IEnumerable<V> enumerator;
         public SelectQuery(Func<T, V> selector, ISqoQuery<T> query)
         {
             this.selector = selector;
@@ -559,12 +559,12 @@ namespace sqoDB
 
     public class SelectQueryJoin<TOuter, TInner, TKey, TResult> : ISqoQuery<TResult>
     {
-        private IEnumerable<TResult> enumerator;
         private readonly IEnumerable<TInner> inner;
         private readonly Func<TInner, TKey> innerKeySelector;
         private readonly Func<TOuter, TKey> outerKeySelector;
         private readonly ISqoQuery<TOuter> query;
         private readonly Func<TOuter, TInner, TResult> resultSelector;
+        private IEnumerable<TResult> enumerator;
         public SelectQueryJoin(ISqoQuery<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector,
             Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector)
         {

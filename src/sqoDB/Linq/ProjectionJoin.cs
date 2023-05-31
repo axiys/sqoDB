@@ -273,11 +273,11 @@ namespace sqoDB
         private class Enumerator : ProjectionRow, IEnumerator<T>, IEnumerator, IDisposable
         {
             private readonly List<SqoColumn> columns;
+            private readonly Func<ProjectionRow, T> projector;
             private int currentIndex;
             internal Type innerType;
             internal List<KeyValuePair<int, int>> oids;
             internal Type outerType;
-            private readonly Func<ProjectionRow, T> projector;
             internal Siaqodb siaqodb;
 
             internal Enumerator(List<SqoColumn> columns, Func<ProjectionRow, T> projector)

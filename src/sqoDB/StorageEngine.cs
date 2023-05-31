@@ -1,23 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Collections;
-using sqoDB.Meta;
-using System.Diagnostics;
-using sqoDB.Core;
 using System.IO;
-using sqoDB.Queries;
 using System.Reflection;
-using sqoDB.Exceptions;
-using sqoDB.Utilities;
-using sqoDB.Indexes;
-using sqoDB.Transactions;
-
 using sqoDB.Cache;
+using sqoDB.Core;
+using sqoDB.Exceptions;
+using sqoDB.Indexes;
+using sqoDB.Meta;
+using sqoDB.MetaObjects;
+using sqoDB.Transactions;
+using sqoDB.Utilities;
 #if ASYNC
 using System.Threading.Tasks;
 
 #endif
+
 #if WinRT
 using Windows.Storage.Search;
 using Windows.Storage;
@@ -30,7 +27,7 @@ using Windows.Storage;
 namespace sqoDB
 {
     [Obfuscation(Feature = "Apply to member * when event: renaming", Exclude = true)]
-    partial class StorageEngine
+    internal partial class StorageEngine
     {
         #region VAR DECLARATIONS
 
@@ -38,15 +35,15 @@ namespace sqoDB
         internal StorageFolder storageFolder;
 #endif
         internal string path;
-        private object _syncRoot=new object();
+        private readonly object _syncRoot = new object();
         internal MetaCache metaCache;
-        
-        RawdataSerializer rawSerializer;
+
+        private readonly RawdataSerializer rawSerializer;
         internal IndexManager indexManager;
-        CircularRefCache circularRefCache = new CircularRefCache();
-        List<ATuple<Type, String>> includePropertiesCache;
-        List<object> parentsComparison;
-        bool useElevatedTrust;
+        private readonly CircularRefCache circularRefCache = new CircularRefCache();
+        private List<ATuple<Type, string>> includePropertiesCache;
+        private List<object> parentsComparison;
+        private readonly bool useElevatedTrust;
 
 #if UNITY3D
         private EventHandler<LoadingObjectEventArgs> loadingObject;
@@ -121,7 +118,7 @@ namespace sqoDB
 			{
 				lock (_syncRoot)
 				{
-					needSaveComplexObjectAsync	 -= value;
+					needSaveComplexObjectAsync -= value;
 				}
 			}
 
@@ -134,7 +131,7 @@ namespace sqoDB
 #if ASYNC
         public event ComplexObjectEventHandler NeedSaveComplexObjectAsync;
 #endif
-        
+
 #endif
 #if UNITY3D || CF || MONODROID
 #else
@@ -145,21 +142,19 @@ namespace sqoDB
 
         #region CTOR
 
-        public StorageEngine(string path )
+        public StorageEngine(string path)
         {
             this.path = path;
             SerializerFactory.ClearCache(path);
-            this.rawSerializer=new RawdataSerializer(this, useElevatedTrust);
-            
+            rawSerializer = new RawdataSerializer(this, useElevatedTrust);
         }
-       
-        public StorageEngine(string path,bool useElevatedTrust)
+
+        public StorageEngine(string path, bool useElevatedTrust)
         {
             this.path = path;
             SerializerFactory.ClearCache(path);
             this.useElevatedTrust = useElevatedTrust;
-            this.rawSerializer = new RawdataSerializer(this, useElevatedTrust);
-           
+            rawSerializer = new RawdataSerializer(this, useElevatedTrust);
         }
 
 #if WinRT
@@ -179,57 +174,41 @@ namespace sqoDB
         }
 #endif
 
-
         #endregion
 
         #region TYPE MANAGEMENT
 
-        public  void SaveType(SqoTypeInfo ti)
-		{
-            if (ti.Header.TID == 0)
-            {
-                ti.Header.TID = metaCache.GetNextTID();
-            }
-           ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti),useElevatedTrust);
-            
-           serializer.SerializeType(ti);
+        public void SaveType(SqoTypeInfo ti)
+        {
+            if (ti.Header.TID == 0) ti.Header.TID = metaCache.GetNextTID();
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
 
-		}
+            serializer.SerializeType(ti);
+        }
 #if ASYNC
         public async Task SaveTypeAsync(SqoTypeInfo ti)
         {
-            if (ti.Header.TID == 0)
-            {
-                ti.Header.TID = metaCache.GetNextTID();
-            }
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            if (ti.Header.TID == 0) ti.Header.TID = metaCache.GetNextTID();
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
 
             await serializer.SerializeTypeAsync(ti).ConfigureAwait(false);
-
         }
 #endif
         private string GetFileByType(SqoTypeInfo ti)
         {
-            if (ti.Header.version > -31 && ti.Type!=null) //version less than 3.1
-            {
+            if (ti.Header.version > -31 && ti.Type != null) //version less than 3.1
                 return MetaHelper.GetOldFileNameByType(ti.Type);
-            }
-            else
-            {
-                return GetFileByType(ti.TypeName);
-            }
+            return GetFileByType(ti.TypeName);
         }
+
         private string GetFileByType(string typeName)
         {
-            string customName = Cache.CacheCustomFileNames.GetFileName(typeName);
-            if (customName != null)
-            {
-                return customName;
-            }
+            var customName = CacheCustomFileNames.GetFileName(typeName);
+            if (customName != null) return customName;
 
-            string assemblyName = typeName.Substring(typeName.LastIndexOf(',') + 1);
-            string onlyTypeName = typeName.Substring(0, typeName.LastIndexOf(','));
-            string fileName = onlyTypeName + "." + assemblyName;
+            var assemblyName = typeName.Substring(typeName.LastIndexOf(',') + 1);
+            var onlyTypeName = typeName.Substring(0, typeName.LastIndexOf(','));
+            var fileName = onlyTypeName + "." + assemblyName;
 
             //fileName = fileName.GetHashCode().ToString();
 
@@ -242,60 +221,52 @@ namespace sqoDB
 
             return fileName;
         }
-       
+
         internal SqoTypeInfo GetSqoTypeInfoSoft(Type t)
         {
             SqoTypeInfo ti = null;
-            Type objType = t;
-            if (this.metaCache.Contains(objType))
-            {
+            var objType = t;
+            if (metaCache.Contains(objType))
                 ti = metaCache.GetSqoTypeInfo(objType);
-            }
             else
-            {
                 ti = MetaExtractor.GetSqoTypeInfo(objType);
-            }
             return ti;
         }
 #if !WinRT
         internal void LoadMetaDataTypesForManager()
         {
-            string rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(sqoDB.MetaObjects.RawdataInfo));
-             if (MetaHelper.FileExists(this.path, rawdatainfoName,this.useElevatedTrust))
-             {
-                 this.UpgradeInternalSqoTypeInfos(typeof(sqoDB.MetaObjects.RawdataInfo), "rawdatainfo",false);
-             }
-             else
-             {
-                 CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName, "rawdatainfo", false);
-                 ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName), this.useElevatedTrust);
-                 SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(true);
-                 if (ti != null)
-                 {
-                     this.CompareSchema(ti);
-                 }
-             }
-
+            var rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(RawdataInfo));
+            if (MetaHelper.FileExists(path, rawdatainfoName, useElevatedTrust))
+            {
+                UpgradeInternalSqoTypeInfos(typeof(RawdataInfo), "rawdatainfo", false);
+            }
+            else
+            {
+                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName, "rawdatainfo",
+                    false);
+                var seralizer = SerializerFactory.GetSerializer(path,
+                    GetFileByType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName), useElevatedTrust);
+                var ti = seralizer.DeserializeSqoTypeInfo(true);
+                if (ti != null) CompareSchema(ti);
+            }
         }
 #if ASYNC
         internal async Task LoadMetaDataTypesForManagerAsync()
         {
-            string rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(sqoDB.MetaObjects.RawdataInfo));
-            if (MetaHelper.FileExists(this.path, rawdatainfoName, this.useElevatedTrust))
+            var rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(RawdataInfo));
+            if (MetaHelper.FileExists(path, rawdatainfoName, useElevatedTrust))
             {
-                await this.UpgradeInternalSqoTypeInfosAsync(typeof(sqoDB.MetaObjects.RawdataInfo), "rawdatainfo", false).ConfigureAwait(false);
+                await UpgradeInternalSqoTypeInfosAsync(typeof(RawdataInfo), "rawdatainfo", false).ConfigureAwait(false);
             }
             else
             {
-                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName, "rawdatainfo", false);
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName), this.useElevatedTrust);
-                SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
-                if (ti != null)
-                {
-                    await this.CompareSchemaAsync(ti).ConfigureAwait(false);
-                }
+                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName, "rawdatainfo",
+                    false);
+                var seralizer = SerializerFactory.GetSerializer(path,
+                    GetFileByType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName), useElevatedTrust);
+                var ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
+                if (ti != null) await CompareSchemaAsync(ti).ConfigureAwait(false);
             }
-
         }
 #endif
 
@@ -303,44 +274,40 @@ namespace sqoDB
 
         internal void LoadMetaDataTypes()
         {
-            string rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(sqoDB.MetaObjects.RawdataInfo));
-           
+            var rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(RawdataInfo));
+
 #if !WinRT
-            if (MetaHelper.FileExists(this.path, rawdatainfoName,this.useElevatedTrust))
+            if (MetaHelper.FileExists(path, rawdatainfoName, useElevatedTrust))
             {
-                this.UpgradeInternalSqoTypeInfos(typeof(sqoDB.MetaObjects.RawdataInfo), "rawdatainfo", false);
-                string indexinfoName = MetaHelper.GetOldFileNameByType(typeof(sqoDB.Indexes.IndexInfo2));
-                if (MetaHelper.FileExists(this.path, indexinfoName,this.useElevatedTrust))
-                {
-                    this.UpgradeInternalSqoTypeInfos(typeof(sqoDB.Indexes.IndexInfo2), "indexinfo2", true);
-                }
+                UpgradeInternalSqoTypeInfos(typeof(RawdataInfo), "rawdatainfo", false);
+                var indexinfoName = MetaHelper.GetOldFileNameByType(typeof(IndexInfo2));
+                if (MetaHelper.FileExists(path, indexinfoName, useElevatedTrust))
+                    UpgradeInternalSqoTypeInfos(typeof(IndexInfo2), "indexinfo2", true);
             }
 
             else
 #endif
             {
-
-                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName, "rawdatainfo", false);
-                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(sqoDB.Indexes.IndexInfo2)).TypeName, "indexinfo2", false);
+                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName, "rawdatainfo",
+                    false);
+                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(IndexInfo2)).TypeName, "indexinfo2",
+                    false);
 #if KEVAST
                 CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(KeVaSt.KVSInfo)).TypeName, "KVSInfo", false);
 #endif
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName), this.useElevatedTrust);
-                SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(true);
-                if (ti != null)
-                {
-                    this.CompareSchema(ti);
-                }
+                var seralizer = SerializerFactory.GetSerializer(path,
+                    GetFileByType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName), useElevatedTrust);
+                var ti = seralizer.DeserializeSqoTypeInfo(true);
+                if (ti != null) CompareSchema(ti);
 
 
-                seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(sqoDB.Indexes.IndexInfo2)).TypeName), this.useElevatedTrust);
+                seralizer = SerializerFactory.GetSerializer(path,
+                    GetFileByType(new SqoTypeInfo(typeof(IndexInfo2)).TypeName), useElevatedTrust);
                 ti = seralizer.DeserializeSqoTypeInfo(true);
-                if (ti != null)
-                {
-                    this.CompareSchema(ti);
-                }
-                #if KEVAST
-                seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(KeVaSt.KVSInfo)).TypeName), this.useElevatedTrust);
+                if (ti != null) CompareSchema(ti);
+#if KEVAST
+                seralizer =
+ SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(KeVaSt.KVSInfo)).TypeName), this.useElevatedTrust);
                 ti = seralizer.DeserializeSqoTypeInfo(true);
                 if (ti != null)
                 {
@@ -348,49 +315,46 @@ namespace sqoDB
                 }
 #endif
             }
-
         }
-       
+
 #if ASYNC
         internal async Task LoadMetaDataTypesAsync()
         {
-            string rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(sqoDB.MetaObjects.RawdataInfo));
+            var rawdatainfoName = MetaHelper.GetOldFileNameByType(typeof(RawdataInfo));
 
-            #if !WinRT
-            if (MetaHelper.FileExists(this.path, rawdatainfoName, this.useElevatedTrust))
+#if !WinRT
+            if (MetaHelper.FileExists(path, rawdatainfoName, useElevatedTrust))
             {
-                await this.UpgradeInternalSqoTypeInfosAsync(typeof(sqoDB.MetaObjects.RawdataInfo), "rawdatainfo", false).ConfigureAwait(false);
-                string indexinfoName = MetaHelper.GetOldFileNameByType(typeof(sqoDB.Indexes.IndexInfo2));
-                if (MetaHelper.FileExists(this.path, indexinfoName, this.useElevatedTrust))
-                {
-                    await this.UpgradeInternalSqoTypeInfosAsync(typeof(sqoDB.Indexes.IndexInfo2), "indexinfo2", true).ConfigureAwait(false);
-                }
+                await UpgradeInternalSqoTypeInfosAsync(typeof(RawdataInfo), "rawdatainfo", false).ConfigureAwait(false);
+                var indexinfoName = MetaHelper.GetOldFileNameByType(typeof(IndexInfo2));
+                if (MetaHelper.FileExists(path, indexinfoName, useElevatedTrust))
+                    await UpgradeInternalSqoTypeInfosAsync(typeof(IndexInfo2), "indexinfo2", true)
+                        .ConfigureAwait(false);
             }
 
             else
 #endif
             {
-                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName, "rawdatainfo", false);
-                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(sqoDB.Indexes.IndexInfo2)).TypeName, "indexinfo2", false);
+                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName, "rawdatainfo",
+                    false);
+                CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(IndexInfo2)).TypeName, "indexinfo2",
+                    false);
 #if KEVAST
                 CacheCustomFileNames.AddFileNameForType(new SqoTypeInfo(typeof(KeVaSt.KVSInfo)).TypeName, "KVSInfo", false);
 #endif
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(sqoDB.MetaObjects.RawdataInfo)).TypeName), this.useElevatedTrust);
-                SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
-                if (ti != null)
-                {
-                    await this.CompareSchemaAsync(ti).ConfigureAwait(false);
-                }
+                var seralizer = SerializerFactory.GetSerializer(path,
+                    GetFileByType(new SqoTypeInfo(typeof(RawdataInfo)).TypeName), useElevatedTrust);
+                var ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
+                if (ti != null) await CompareSchemaAsync(ti).ConfigureAwait(false);
 
 
-                seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(sqoDB.Indexes.IndexInfo2)).TypeName), this.useElevatedTrust);
+                seralizer = SerializerFactory.GetSerializer(path,
+                    GetFileByType(new SqoTypeInfo(typeof(IndexInfo2)).TypeName), useElevatedTrust);
                 ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
-                if (ti != null)
-                {
-                    await this.CompareSchemaAsync(ti).ConfigureAwait(false);
-                }
+                if (ti != null) await CompareSchemaAsync(ti).ConfigureAwait(false);
 #if KEVAST
-                seralizer = SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(KeVaSt.KVSInfo)).TypeName), this.useElevatedTrust);
+                seralizer =
+ SerializerFactory.GetSerializer(path, this.GetFileByType(new SqoTypeInfo(typeof(KeVaSt.KVSInfo)).TypeName), this.useElevatedTrust);
                 ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
                 if (ti != null)
                 {
@@ -398,20 +362,15 @@ namespace sqoDB
                 }
 #endif
             }
-
         }
-       
+
 #endif
-        
+
         internal List<SqoTypeInfo> LoadAllTypesForObjectManager()
         {
-            string extension = ".sqo";
-            if (SiaqodbConfigurator.EncryptedDatabase)
-            {
-                extension = ".esqo";
-            }
+            var extension = ".sqo";
+            if (SiaqodbConfigurator.EncryptedDatabase) extension = ".esqo";
 #if SILVERLIGHT
-
             if (!this.useElevatedTrust)
             {
                 List<SqoTypeInfo> list = new List<SqoTypeInfo>();
@@ -501,9 +460,10 @@ namespace sqoDB
                 {
                     continue;
                 }
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(storageFolder.Path, typeName, useElevatedTrust);
+                ObjectSerializer seralizer =
+ SerializerFactory.GetSerializer(storageFolder.Path, typeName, useElevatedTrust);
 
-                SqoTypeInfo ti =  seralizer.DeserializeSqoTypeInfo(false);
+                SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(false);
                 if (ti != null)
                 {
                     ti.FileNameForManager = typeName;
@@ -512,42 +472,38 @@ namespace sqoDB
             }
             return list;
 #else
-            List<SqoTypeInfo> list = new List<SqoTypeInfo>();
+            var list = new List<SqoTypeInfo>();
 
-            System.IO.DirectoryInfo di = new System.IO.DirectoryInfo(path);
+            var di = new DirectoryInfo(path);
             //TODO: throw exception
-            FileInfo[] fi = di.GetFiles("*" + extension);
+            var fi = di.GetFiles("*" + extension);
 
-            foreach (FileInfo f in fi)
+            foreach (var f in fi)
             {
-                string typeName = f.Name.Replace(extension, "");
-                if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo") || typeName.StartsWith("sqoDB.Indexes.BTreeNode"))//engine types
-                {
+                var typeName = f.Name.Replace(extension, "");
+                if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo") ||
+                    typeName.StartsWith("sqoDB.Indexes.BTreeNode")) //engine types
                     continue;
-                }
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
+                var seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
 
-                SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(false);
+                var ti = seralizer.DeserializeSqoTypeInfo(false);
                 if (ti != null && !ti.TypeName.StartsWith("sqoDB.Indexes.BTreeNode"))
                 {
                     ti.FileNameForManager = typeName;
                     list.Add(ti);
                 }
             }
+
             return list;
 #endif
         }
-       
+
 #if ASYNC
         internal async Task<List<SqoTypeInfo>> LoadAllTypesForObjectManagerAsync()
         {
-            string extension = ".sqo";
-            if (SiaqodbConfigurator.EncryptedDatabase)
-            {
-                extension = ".esqo";
-            }
+            var extension = ".sqo";
+            if (SiaqodbConfigurator.EncryptedDatabase) extension = ".esqo";
 #if SILVERLIGHT
-
             if (!this.useElevatedTrust)
             {
                 List<SqoTypeInfo> list = new List<SqoTypeInfo>();
@@ -636,7 +592,8 @@ namespace sqoDB
                 {
                     continue;
                 }
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(storageFolder.Path, typeName, useElevatedTrust);
+                ObjectSerializer seralizer =
+ SerializerFactory.GetSerializer(storageFolder.Path, typeName, useElevatedTrust);
 
                 SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(false).ConfigureAwait(false);
                 if (ti != null)
@@ -647,37 +604,35 @@ namespace sqoDB
             }
             return list;
 #else
-            List<SqoTypeInfo> list = new List<SqoTypeInfo>();
+            var list = new List<SqoTypeInfo>();
 
-            System.IO.DirectoryInfo di = new System.IO.DirectoryInfo(path);
+            var di = new DirectoryInfo(path);
             //TODO: throw exception
-            FileInfo[] fi = di.GetFiles("*" + extension);
+            var fi = di.GetFiles("*" + extension);
 
-            foreach (FileInfo f in fi)
+            foreach (var f in fi)
             {
-                string typeName = f.Name.Replace(extension, "");
-                if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo") || typeName.StartsWith("sqoDB.Indexes.BTreeNode"))//engine types
-                {
+                var typeName = f.Name.Replace(extension, "");
+                if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo") ||
+                    typeName.StartsWith("sqoDB.Indexes.BTreeNode")) //engine types
                     continue;
-                }
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
+                var seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
 
-                SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(false).ConfigureAwait(false);
+                var ti = await seralizer.DeserializeSqoTypeInfoAsync(false).ConfigureAwait(false);
                 if (ti != null && !ti.TypeName.StartsWith("sqoDB.Indexes.BTreeNode"))
                 {
                     ti.FileNameForManager = typeName;
                     list.Add(ti);
                 }
             }
+
             return list;
 #endif
         }
-       
+
 #endif
         internal void LoadAllTypes()
         {
-           
-			
 #if SILVERLIGHT
             string extension = ".sqo";
             if (SiaqodbConfigurator.EncryptedDatabase)
@@ -796,7 +751,8 @@ namespace sqoDB
                 {
                     continue;
                 }
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(storageFolder.Path, typeName, this.useElevatedTrust);
+                ObjectSerializer seralizer =
+ SerializerFactory.GetSerializer(storageFolder.Path, typeName, this.useElevatedTrust);
 
                 SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(true);
 
@@ -819,65 +775,47 @@ namespace sqoDB
 #else
 
             if (Directory.Exists(path))
-			{
-				 this.LoadMetaDataTypes();
-                System.IO.DirectoryInfo di = new System.IO.DirectoryInfo(path);
+            {
+                LoadMetaDataTypes();
+                var di = new DirectoryInfo(path);
 
-				//TODO: throw exception
-                string extension = ".sqo";
-                if (SiaqodbConfigurator.EncryptedDatabase)
-                {
-                    extension = ".esqo";
-                }
-                FileInfo[] fi = di.GetFiles("*"+extension);
+                //TODO: throw exception
+                var extension = ".sqo";
+                if (SiaqodbConfigurator.EncryptedDatabase) extension = ".esqo";
+                var fi = di.GetFiles("*" + extension);
 
-                List<SqoTypeInfo> listToBuildIndexes = new List<SqoTypeInfo>();
-				foreach (FileInfo f in fi)
+                var listToBuildIndexes = new List<SqoTypeInfo>();
+                foreach (var f in fi)
                 {
-                    string typeName = f.Name.Replace(extension, "");
-                   
-					//Type t=Type.GetType(typeName);
-                    if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo"))//engine types
-                    {
+                    var typeName = f.Name.Replace(extension, "");
+
+                    //Type t=Type.GetType(typeName);
+                    if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo")) //engine types
                         continue;
-                    }
-					ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, typeName,this.useElevatedTrust);
+                    var seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
 
-					SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(true);
+                    var ti = seralizer.DeserializeSqoTypeInfo(true);
 
-                   
 
-					
-					if (ti != null)
+                    if (ti != null)
                     {
-                        if (this.GetFileByType(ti) != typeName)//check for custom fileName
-                        {
+                        if (GetFileByType(ti) != typeName) //check for custom fileName
                             continue;
-                        }
 
-                      this.CompareSchema(ti);
-
+                        CompareSchema(ti);
                     }
-					
-
-                   
-				}
-			}
-			else
-			{ 
-				
-				throw new SiaqodbException("Invalid folder path!");
-			}
+                }
+            }
+            else
+            {
+                throw new SiaqodbException("Invalid folder path!");
+            }
 #endif
-
-
         }
-        
+
 #if ASYNC
         internal async Task LoadAllTypesAsync()
         {
-
-
 #if SILVERLIGHT
             string extension = ".sqo";
             if (SiaqodbConfigurator.EncryptedDatabase)
@@ -914,7 +852,7 @@ namespace sqoDB
                         continue;
                     }
                     ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
-                    SqoTypeInfo ti =await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
+                    SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
                    
                     if (ti != null)
                     {
@@ -998,7 +936,8 @@ namespace sqoDB
                 {
                     continue;
                 }
-                ObjectSerializer seralizer = SerializerFactory.GetSerializer(storageFolder.Path, typeName, this.useElevatedTrust);
+                ObjectSerializer seralizer =
+ SerializerFactory.GetSerializer(storageFolder.Path, typeName, this.useElevatedTrust);
 
                 SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
 
@@ -1023,38 +962,30 @@ namespace sqoDB
 
             if (Directory.Exists(path))
             {
-                await this.LoadMetaDataTypesAsync().ConfigureAwait(false);
-                System.IO.DirectoryInfo di = new System.IO.DirectoryInfo(path);
+                await LoadMetaDataTypesAsync().ConfigureAwait(false);
+                var di = new DirectoryInfo(path);
 
                 //TODO: throw exception
-                string extension = ".sqo";
-                if (SiaqodbConfigurator.EncryptedDatabase)
-                {
-                    extension = ".esqo";
-                }
-                FileInfo[] fi = di.GetFiles("*" + extension);
+                var extension = ".sqo";
+                if (SiaqodbConfigurator.EncryptedDatabase) extension = ".esqo";
+                var fi = di.GetFiles("*" + extension);
 
-                List<SqoTypeInfo> listToBuildIndexes = new List<SqoTypeInfo>();
-                foreach (FileInfo f in fi)
+                var listToBuildIndexes = new List<SqoTypeInfo>();
+                foreach (var f in fi)
                 {
-                    string typeName = f.Name.Replace(extension, "");
+                    var typeName = f.Name.Replace(extension, "");
 
                     //Type t=Type.GetType(typeName);
-                    if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo"))//engine types
-                    {
+                    if (typeName.StartsWith("indexinfo") || typeName.StartsWith("rawdatainfo")) //engine types
                         continue;
-                    }
-                    ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, typeName, this.useElevatedTrust);
-                    SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
+                    var seralizer = SerializerFactory.GetSerializer(path, typeName, useElevatedTrust);
+                    var ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
                     if (ti != null)
                     {
-                        if (this.GetFileByType(ti) != typeName)//check for custom fileName
-                        {
+                        if (GetFileByType(ti) != typeName) //check for custom fileName
                             continue;
-                        }
-                        await this.CompareSchemaAsync(ti).ConfigureAwait(false);
+                        await CompareSchemaAsync(ti).ConfigureAwait(false);
                     }
-
                 }
             }
             else
@@ -1062,46 +993,39 @@ namespace sqoDB
                 throw new SiaqodbException("Invalid folder path!");
             }
 #endif
-
         }
-        
+
 #endif
         private void CompareSchema(SqoTypeInfo ti)
         {
-            SqoTypeInfo actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
+            var actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
             if (!MetaExtractor.CompareSqoTypeInfos(actualType, ti))
             {
-                ObjectTable table = this.LoadAll(ti);
-                
+                var table = LoadAll(ti);
+
                 try
                 {
                     actualType.Header.numberOfRecords = ti.Header.numberOfRecords;
                     actualType.Header.TID = ti.Header.TID;
 
-                    this.SaveType(actualType);
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(actualType), useElevatedTrust);
-                    serializer.SaveObjectTable(actualType,ti, table,this.rawSerializer);
+                    SaveType(actualType);
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(actualType), useElevatedTrust);
+                    serializer.SaveObjectTable(actualType, ti, table, rawSerializer);
 
-                    if (this.GetFileByType(actualType) != this.GetFileByType(ti))//< version 3.1 on SL
-                    {
-                        this.DropType(ti);
-                    }
+                    if (GetFileByType(actualType) != GetFileByType(ti)) //< version 3.1 on SL
+                        DropType(ti);
                     metaCache.AddType(actualType.Type, actualType);
 
-                    this.Flush(actualType);
-                    
-                    
+                    Flush(actualType);
                 }
                 catch
                 {
-                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type.ToString() + " cannot be upgraded, will be marked as 'Old'!",VerboseLevel.Error);
+                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type + " cannot be upgraded, will be marked as 'Old'!",
+                        VerboseLevel.Error);
                     ti.IsOld = true;
-                    this.SaveType(ti);
+                    SaveType(ti);
                     metaCache.AddType(ti.Type, ti);
-
-                    
                 }
-
             }
             else
             {
@@ -1115,52 +1039,45 @@ namespace sqoDB
                 }
 #endif
                 metaCache.AddType(ti.Type, ti);
-
             }
-           
         }
 #if ASYNC
         private async Task CompareSchemaAsync(SqoTypeInfo ti)
         {
-            SqoTypeInfo actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
+            var actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
             if (!MetaExtractor.CompareSqoTypeInfos(actualType, ti))
             {
-                ObjectTable table = await this.LoadAllAsync(ti).ConfigureAwait(false);
-                bool typeWasSaved = true;
+                var table = await LoadAllAsync(ti).ConfigureAwait(false);
+                var typeWasSaved = true;
                 try
                 {
                     actualType.Header.numberOfRecords = ti.Header.numberOfRecords;
                     actualType.Header.TID = ti.Header.TID;
 
-                    await this.SaveTypeAsync(actualType).ConfigureAwait(false);
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(actualType), useElevatedTrust);
-                    await serializer.SaveObjectTableAsync(actualType, ti, table, this.rawSerializer).ConfigureAwait(false);
+                    await SaveTypeAsync(actualType).ConfigureAwait(false);
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(actualType), useElevatedTrust);
+                    await serializer.SaveObjectTableAsync(actualType, ti, table, rawSerializer).ConfigureAwait(false);
 
-                    if (this.GetFileByType(actualType) != this.GetFileByType(ti))//< version 3.1 on SL
-                    {
-                        await this.DropTypeAsync(ti).ConfigureAwait(false);
-                    }
+                    if (GetFileByType(actualType) != GetFileByType(ti)) //< version 3.1 on SL
+                        await DropTypeAsync(ti).ConfigureAwait(false);
                     metaCache.AddType(actualType.Type, actualType);
 
-                    await this.FlushAsync(actualType).ConfigureAwait(false);
-
-
+                    await FlushAsync(actualType).ConfigureAwait(false);
                 }
                 catch
                 {
-                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type.ToString() + " cannot be upgraded, will be marked as 'Old'!", VerboseLevel.Error);
-                  
+                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type + " cannot be upgraded, will be marked as 'Old'!",
+                        VerboseLevel.Error);
+
                     ti.IsOld = true;
                     typeWasSaved = false;
-
-
                 }
+
                 if (!typeWasSaved)
                 {
-                    await this.SaveTypeAsync(ti).ConfigureAwait(false) ;
+                    await SaveTypeAsync(ti).ConfigureAwait(false);
                     metaCache.AddType(ti.Type, ti);
                 }
-
             }
             else
             {
@@ -1174,38 +1091,29 @@ namespace sqoDB
                 }
 #endif
                 metaCache.AddType(ti.Type, ti);
-
             }
-
         }
 #endif
         internal bool DropType(SqoTypeInfo ti)
         {
-            return this.DropType(ti, false);
+            return DropType(ti, false);
         }
 #if ASYNC
         internal async Task<bool> DropTypeAsync(SqoTypeInfo ti)
         {
-            return await this.DropTypeAsync(ti, false).ConfigureAwait(false);
+            return await DropTypeAsync(ti, false).ConfigureAwait(false);
         }
 #endif
-        internal bool DropType(SqoTypeInfo ti,bool claimFreeSpace)
+        internal bool DropType(SqoTypeInfo ti, bool claimFreeSpace)
         {
             lock (_syncRoot)
             {
-                if (claimFreeSpace)
-                {
-                    this.MarkFreeSpace(ti);
-                }
-                string fileName = "";
+                if (claimFreeSpace) MarkFreeSpace(ti);
+                var fileName = "";
                 if (SiaqodbConfigurator.EncryptedDatabase)
-                {
-                    fileName = this.path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".esqo";
-                }
+                    fileName = path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".esqo";
                 else
-                {
-                    fileName = this.path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".sqo";
-                }
+                    fileName = path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".sqo";
 #if SILVERLIGHT
                 if (!this.useElevatedTrust)
                 {
@@ -1213,7 +1121,8 @@ namespace sqoDB
 
                     if (isf.FileExists(fileName))
                     {
-                        ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+                        ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
                         serializer.Close();
 
                         try
@@ -1232,18 +1141,20 @@ namespace sqoDB
                 {
                     if (File.Exists(fileName))
                     {
-                        ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
+                        ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
                         serializer.Close();
                         File.Delete(fileName);
                         return true;
                     }   
                 }
-				
+
 
 #elif MONODROID
 				if (File.Exists(fileName))
 				{
-					ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
+					ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
 					serializer.Close();
 					try
 					{
@@ -1260,144 +1171,12 @@ namespace sqoDB
 						return true;
 					}
 				}
-               
+
 #elif UNITY3D
-
-
                 if (File.Exists(fileName))
                 {
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
-                    serializer.Close();
-                    try
-                    {
-                        File.Delete(fileName);
-                        return true;
-                    }
-                    catch (UnauthorizedAccessException ex) //monodroid bug!!!:https://bugzilla.novell.com/show_bug.cgi?id=684172
-                    {
-                        SiaqodbConfigurator.LogMessage("File:"+fileName+" cannot be deleted,set size to zero!",VerboseLevel.Error);
-                  
-                        serializer.Open(this.useElevatedTrust);
-                        serializer.MakeEmpty();
-                        serializer.Close();
-                        return true;
-                    }
-                }
-   #elif WinRT
-
-                ObjectSerializer serializer = SerializerFactory.GetSerializer(this.storageFolder.Path, GetFileByType(ti), useElevatedTrust);
-                serializer.Close();
-                StorageFolder storageFolder = StorageFolder.GetFolderFromPathAsync(this.storageFolder.Path).AsTask().Result;
-                try
-                {
-                    StorageFile file =  storageFolder.GetFileAsync(Path.GetFileName(fileName)).AsTask().Result;
-
-                    file.DeleteAsync(StorageDeleteOption.PermanentDelete).AsTask().Wait();
-                }
-                catch (FileNotFoundException ex)
-                {
-                    return false;
-                }
-                return true;
-
-                           
-#else
-                if (File.Exists(fileName))
-                {
-
-
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
-                    serializer.Close();
-                    File.Delete(fileName);
-                    return true;
-
-
-                }
-
-
-#endif
-                return false;
-            }
-        }
-        
-#if ASYNC
-        internal async Task<bool> DropTypeAsync(SqoTypeInfo ti,bool claimFreeSpace)
-        {
-            
-                if (claimFreeSpace)
-                {
-                    await this.MarkFreeSpaceAsync(ti).ConfigureAwait(false);
-                }
-                string fileName = "";
-                if (SiaqodbConfigurator.EncryptedDatabase)
-                {
-                    fileName = this.path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".esqo";
-                }
-                else
-                {
-                    fileName = this.path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".sqo";
-                }
-#if SILVERLIGHT
-                if (!this.useElevatedTrust)
-                {
-                    IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
-
-                    if (isf.FileExists(fileName))
-                    {
-                        ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
-                        await serializer.CloseAsync().ConfigureAwait(false);
-
-                        try
-                        {
-                            isf.DeleteFile(fileName);
-
-                            return true;
-                        }
-                        catch (IsolatedStorageException ex)
-                        {
-                            throw ex;
-                        }
-                    }
-                }
-                else
-                {
-                    if (File.Exists(fileName))
-                    {
-                        ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
-                        await serializer.CloseAsync().ConfigureAwait(false);
-                        File.Delete(fileName);
-                        return true;
-                    }   
-                }
-				
-
-#elif MONODROID
-			if (File.Exists(fileName))
-			{
-				ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
-				serializer.Close();
-				try
-				{
-					File.Delete(fileName);
-					return true;
-				}
-				catch (UnauthorizedAccessException ex) //monodroid bug!!!:https://bugzilla.novell.com/show_bug.cgi?id=684172
-				{
-					SiaqodbConfigurator.LogMessage("File:"+fileName+" cannot be deleted,set size to zero!",VerboseLevel.Error);
-
-					serializer.Open(this.useElevatedTrust);
-					serializer.MakeEmpty();
-					serializer.Close();
-					return true;
-				}
-			}
-               
-#elif UNITY3D
-
-
-                if (File.Exists(fileName))
-                {
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
+                    ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
                     serializer.Close();
                     try
                     {
@@ -1415,8 +1194,130 @@ namespace sqoDB
                     }
                 }
 #elif WinRT
+                ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.storageFolder.Path, GetFileByType(ti), useElevatedTrust);
+                serializer.Close();
+                StorageFolder storageFolder =
+ StorageFolder.GetFolderFromPathAsync(this.storageFolder.Path).AsTask().Result;
+                try
+                {
+                    StorageFile file = storageFolder.GetFileAsync(Path.GetFileName(fileName)).AsTask().Result;
 
-                ObjectSerializer serializer = SerializerFactory.GetSerializer(this.storageFolder.Path, GetFileByType(ti), useElevatedTrust);
+                    file.DeleteAsync(StorageDeleteOption.PermanentDelete).AsTask().Wait();
+                }
+                catch (FileNotFoundException ex)
+                {
+                    return false;
+                }
+                return true;
+
+
+#else
+                if (File.Exists(fileName))
+                {
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
+                    serializer.Close();
+                    File.Delete(fileName);
+                    return true;
+                }
+
+
+#endif
+                return false;
+            }
+        }
+
+#if ASYNC
+        internal async Task<bool> DropTypeAsync(SqoTypeInfo ti, bool claimFreeSpace)
+        {
+            if (claimFreeSpace) await MarkFreeSpaceAsync(ti).ConfigureAwait(false);
+            var fileName = "";
+            if (SiaqodbConfigurator.EncryptedDatabase)
+                fileName = path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".esqo";
+            else
+                fileName = path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".sqo";
+#if SILVERLIGHT
+                if (!this.useElevatedTrust)
+                {
+                    IsolatedStorageFile isf = IsolatedStorageFile.GetUserStoreForApplication();
+
+                    if (isf.FileExists(fileName))
+                    {
+                        ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+                        await serializer.CloseAsync().ConfigureAwait(false);
+
+                        try
+                        {
+                            isf.DeleteFile(fileName);
+
+                            return true;
+                        }
+                        catch (IsolatedStorageException ex)
+                        {
+                            throw ex;
+                        }
+                    }
+                }
+                else
+                {
+                    if (File.Exists(fileName))
+                    {
+                        ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
+                        await serializer.CloseAsync().ConfigureAwait(false);
+                        File.Delete(fileName);
+                        return true;
+                    }   
+                }
+
+
+#elif MONODROID
+			if (File.Exists(fileName))
+			{
+				ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
+				serializer.Close();
+				try
+				{
+					File.Delete(fileName);
+					return true;
+				}
+				catch (UnauthorizedAccessException ex) //monodroid bug!!!:https://bugzilla.novell.com/show_bug.cgi?id=684172
+				{
+					SiaqodbConfigurator.LogMessage("File:"+fileName+" cannot be deleted,set size to zero!",VerboseLevel.Error);
+
+					serializer.Open(this.useElevatedTrust);
+					serializer.MakeEmpty();
+					serializer.Close();
+					return true;
+				}
+			}
+
+#elif UNITY3D
+                if (File.Exists(fileName))
+                {
+                    ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
+                    serializer.Close();
+                    try
+                    {
+                        File.Delete(fileName);
+                        return true;
+                    }
+                    catch (UnauthorizedAccessException ex) //monodroid bug!!!:https://bugzilla.novell.com/show_bug.cgi?id=684172
+                    {
+                        SiaqodbConfigurator.LogMessage("File:"+fileName+" cannot be deleted,set size to zero!",VerboseLevel.Error);
+                  
+                        serializer.Open(this.useElevatedTrust);
+                        serializer.MakeEmpty();
+                        serializer.Close();
+                        return true;
+                    }
+                }
+#elif WinRT
+                ObjectSerializer serializer =
+ SerializerFactory.GetSerializer(this.storageFolder.Path, GetFileByType(ti), useElevatedTrust);
                 serializer.Close();
                 StorageFolder storageFolder = await StorageFolder.GetFolderFromPathAsync(this.storageFolder.Path);
                 try
@@ -1431,61 +1332,57 @@ namespace sqoDB
                 }
                 return true;
 
-               
+
 #else
-                if (File.Exists(fileName))
-                {
-
-
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), this.useElevatedTrust);
-                    await serializer.CloseAsync().ConfigureAwait(false);
-                    File.Delete(fileName);
-                    return true;
-
-
-                }
+            if (File.Exists(fileName))
+            {
+                var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
+                await serializer.CloseAsync().ConfigureAwait(false);
+                File.Delete(fileName);
+                return true;
+            }
 
 
 #endif
-                return false;
-            
+            return false;
         }
-        
+
 #endif
         internal SqoTypeInfo GetSqoTypeInfo(string typeName)
         {
-            ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, GetFileByType(typeName), useElevatedTrust);
+            var seralizer = SerializerFactory.GetSerializer(path, GetFileByType(typeName), useElevatedTrust);
 
-            SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(false);
+            var ti = seralizer.DeserializeSqoTypeInfo(false);
             return ti;
         }
 #if ASYNC
         internal async Task<SqoTypeInfo> GetSqoTypeInfoAsync(string typeName)
         {
-            ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, GetFileByType(typeName), useElevatedTrust);
+            var seralizer = SerializerFactory.GetSerializer(path, GetFileByType(typeName), useElevatedTrust);
 
-            SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(false).ConfigureAwait(false);
+            var ti = await seralizer.DeserializeSqoTypeInfoAsync(false).ConfigureAwait(false);
             return ti;
         }
 #endif
         private void UpgradeInternalSqoTypeInfos(Type type, string newName, bool dropIt)
         {
-
-            ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, MetaHelper.GetOldFileNameByType(type), this.useElevatedTrust);
-            SqoTypeInfo ti = seralizer.DeserializeSqoTypeInfo(true);
+            var seralizer =
+                SerializerFactory.GetSerializer(path, MetaHelper.GetOldFileNameByType(type), useElevatedTrust);
+            var ti = seralizer.DeserializeSqoTypeInfo(true);
             if (ti != null)
             {
                 if (dropIt)
                 {
-                    this.DropType(ti);
-                    SqoTypeInfo actualType1 = MetaExtractor.GetSqoTypeInfo(ti.Type);
+                    DropType(ti);
+                    var actualType1 = MetaExtractor.GetSqoTypeInfo(ti.Type);
 
                     CacheCustomFileNames.AddFileNameForType(actualType1.TypeName, newName, false);
                     return;
                 }
-                ObjectTable table = this.LoadAll(ti);
-                this.DropType(ti);
-                SqoTypeInfo actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
+
+                var table = LoadAll(ti);
+                DropType(ti);
+                var actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
                 CacheCustomFileNames.AddFileNameForType(actualType.TypeName, newName, false);
 
                 try
@@ -1493,221 +1390,202 @@ namespace sqoDB
                     actualType.Header.numberOfRecords = ti.Header.numberOfRecords;
                     actualType.Header.TID = ti.Header.TID;
 
-                    this.SaveType(actualType);
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(actualType), useElevatedTrust);
-                    serializer.SaveObjectTable(actualType, ti, table, this.rawSerializer);
+                    SaveType(actualType);
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(actualType), useElevatedTrust);
+                    serializer.SaveObjectTable(actualType, ti, table, rawSerializer);
 
                     metaCache.AddType(actualType.Type, actualType);
 
-                    this.Flush(actualType);
-
-
+                    Flush(actualType);
                 }
                 catch
                 {
-                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type.ToString() + " cannot be upgraded, will be marked as 'Old'!", VerboseLevel.Error);
-                 
+                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type + " cannot be upgraded, will be marked as 'Old'!",
+                        VerboseLevel.Error);
+
                     ti.IsOld = true;
-                    this.SaveType(ti);
+                    SaveType(ti);
                     metaCache.AddType(ti.Type, ti);
-
-
                 }
             }
-
         }
-#if ASYNC 
+#if ASYNC
         private async Task UpgradeInternalSqoTypeInfosAsync(Type type, string newName, bool dropIt)
         {
-
-            ObjectSerializer seralizer = SerializerFactory.GetSerializer(path, MetaHelper.GetOldFileNameByType(type), this.useElevatedTrust);
-            SqoTypeInfo ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
+            var seralizer =
+                SerializerFactory.GetSerializer(path, MetaHelper.GetOldFileNameByType(type), useElevatedTrust);
+            var ti = await seralizer.DeserializeSqoTypeInfoAsync(true).ConfigureAwait(false);
             if (ti != null)
             {
                 if (dropIt)
                 {
-                    await this.DropTypeAsync(ti).ConfigureAwait(false);
-                    SqoTypeInfo actualType1 = MetaExtractor.GetSqoTypeInfo(ti.Type);
+                    await DropTypeAsync(ti).ConfigureAwait(false);
+                    var actualType1 = MetaExtractor.GetSqoTypeInfo(ti.Type);
 
                     CacheCustomFileNames.AddFileNameForType(actualType1.TypeName, newName, false);
                     return;
                 }
-                ObjectTable table = await this.LoadAllAsync(ti).ConfigureAwait(false);
-                await this.DropTypeAsync(ti).ConfigureAwait(false);
-                SqoTypeInfo actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
+
+                var table = await LoadAllAsync(ti).ConfigureAwait(false);
+                await DropTypeAsync(ti).ConfigureAwait(false);
+                var actualType = MetaExtractor.GetSqoTypeInfo(ti.Type);
                 CacheCustomFileNames.AddFileNameForType(actualType.TypeName, newName, false);
-                bool exThr=false;
+                var exThr = false;
                 try
                 {
                     actualType.Header.numberOfRecords = ti.Header.numberOfRecords;
                     actualType.Header.TID = ti.Header.TID;
 
-                    await this.SaveTypeAsync(actualType).ConfigureAwait(false);
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(actualType), useElevatedTrust);
-                    await serializer.SaveObjectTableAsync(actualType, ti, table, this.rawSerializer).ConfigureAwait(false);
+                    await SaveTypeAsync(actualType).ConfigureAwait(false);
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(actualType), useElevatedTrust);
+                    await serializer.SaveObjectTableAsync(actualType, ti, table, rawSerializer).ConfigureAwait(false);
 
                     metaCache.AddType(actualType.Type, actualType);
 
-                    await this.FlushAsync(actualType).ConfigureAwait(false);
-
-
+                    await FlushAsync(actualType).ConfigureAwait(false);
                 }
                 catch
                 {
-                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type.ToString() + " cannot be upgraded, will be marked as 'Old'!", VerboseLevel.Error);
-                 
+                    SiaqodbConfigurator.LogMessage("Type:" + ti.Type + " cannot be upgraded, will be marked as 'Old'!",
+                        VerboseLevel.Error);
+
                     ti.IsOld = true;
-                    exThr=true;
-                    
-
+                    exThr = true;
                 }
-                if(exThr)
-                {
-                    await this.SaveTypeAsync(ti).ConfigureAwait(false);
-                    metaCache.AddType(ti.Type, ti);
 
+                if (exThr)
+                {
+                    await SaveTypeAsync(ti).ConfigureAwait(false);
+                    metaCache.AddType(ti.Type, ti);
                 }
             }
-
         }
 #endif
+
         #endregion
-        
+
 
         #region TRANSACTIONS
-        public void RecoverAfterCrash(SqoTypeInfo tiObjectHeader,SqoTypeInfo tiType)
+
+        public void RecoverAfterCrash(SqoTypeInfo tiObjectHeader, SqoTypeInfo tiType)
         {
             lock (_syncRoot)
             {
+                IList<TransactionObjectHeader> headers = LoadAll<TransactionObjectHeader>(tiObjectHeader);
 
-                IList<TransactionObjectHeader> headers = this.LoadAll<TransactionObjectHeader>(tiObjectHeader);
-                
                 if (headers.Count > 0)
                 {
-                    TransactionsStorage storage = this.GetTransactionLogStorage();
+                    var storage = GetTransactionLogStorage();
 
-                    foreach (TransactionObjectHeader header in headers)
+                    foreach (var header in headers)
                     {
-                        byte[] objectBytes = new byte[header.BatchSize];
+                        var objectBytes = new byte[header.BatchSize];
                         storage.Read(header.Position, objectBytes);
-                        Type objType = Type.GetType(header.TypeName);
+                        var objType = Type.GetType(header.TypeName);
                         SqoTypeInfo tiObject = null;
 
                         if (metaCache.Contains(objType))
-                        {
                             tiObject = metaCache.GetSqoTypeInfo(objType);
-                        }
                         else
-                        {
                             tiObject = MetaExtractor.GetSqoTypeInfo(objType);
-                        }
 
                         if (tiObject.Header.lengthOfRecord != header.BatchSize)
-                        {
-                            throw new SiaqodbException("Type schema is different,so objects cannot be rollback after crash");
-                        }
+                            throw new SiaqodbException(
+                                "Type schema is different,so objects cannot be rollback after crash");
 
-                        ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(tiObject), useElevatedTrust);
+                        var serializer =
+                            SerializerFactory.GetSerializer(path, GetFileByType(tiObject), useElevatedTrust);
                         serializer.SerializeObject(objectBytes, header.OIDofObject, tiObject, false);
                     }
+
                     storage.Close();
                 }
-                IList<TransactionTypeHeader> tHeaders = this.LoadAll<TransactionTypeHeader>(tiType);
-                foreach (TransactionTypeHeader tHeader in tHeaders)
+
+                IList<TransactionTypeHeader> tHeaders = LoadAll<TransactionTypeHeader>(tiType);
+                foreach (var tHeader in tHeaders)
                 {
                     //reset number of records   
-                    Type t = Type.GetType(tHeader.TypeName);
+                    var t = Type.GetType(tHeader.TypeName);
                     SqoTypeInfo ti = null;
 
                     if (metaCache.Contains(t))
-                    {
                         ti = metaCache.GetSqoTypeInfo(t);
-                    }
                     else
-                    {
                         ti = MetaExtractor.GetSqoTypeInfo(t);
-                    }
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
                     serializer.SaveNrRecords(ti, tHeader.NumberOfRecords);
 
                     indexManager.ReBuildIndexesAfterCrash(ti);
                 }
-                
-                this.DropType(tiObjectHeader);
-                this.DropType(tiType);
-                this.DropTransactionLog();
+
+                DropType(tiObjectHeader);
+                DropType(tiType);
+                DropTransactionLog();
             }
         }
 #if ASYNC
         public async Task RecoverAfterCrashAsync(SqoTypeInfo tiObjectHeader, SqoTypeInfo tiType)
         {
-
-
-            IList<TransactionObjectHeader> headers = await this.LoadAllAsync<TransactionObjectHeader>(tiObjectHeader).ConfigureAwait(false);
+            IList<TransactionObjectHeader> headers =
+                await LoadAllAsync<TransactionObjectHeader>(tiObjectHeader).ConfigureAwait(false);
 
             if (headers.Count > 0)
             {
-                TransactionsStorage storage = this.GetTransactionLogStorage();
+                var storage = GetTransactionLogStorage();
 
-                foreach (TransactionObjectHeader header in headers)
+                foreach (var header in headers)
                 {
-                    byte[] objectBytes = new byte[header.BatchSize];
+                    var objectBytes = new byte[header.BatchSize];
                     await storage.ReadAsync(header.Position, objectBytes).ConfigureAwait(false);
-                    Type objType = Type.GetType(header.TypeName);
+                    var objType = Type.GetType(header.TypeName);
                     SqoTypeInfo tiObject = null;
 
                     if (metaCache.Contains(objType))
-                    {
                         tiObject = metaCache.GetSqoTypeInfo(objType);
-                    }
                     else
-                    {
                         tiObject = MetaExtractor.GetSqoTypeInfo(objType);
-                    }
 
                     if (tiObject.Header.lengthOfRecord != header.BatchSize)
-                    {
-                        throw new SiaqodbException("Type schema is different,so objects cannot be rollback after crash");
-                    }
+                        throw new SiaqodbException(
+                            "Type schema is different,so objects cannot be rollback after crash");
 
-                    ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(tiObject), useElevatedTrust);
-                    await serializer.SerializeObjectAsync(objectBytes, header.OIDofObject, tiObject, false).ConfigureAwait(false);
+                    var serializer = SerializerFactory.GetSerializer(path, GetFileByType(tiObject), useElevatedTrust);
+                    await serializer.SerializeObjectAsync(objectBytes, header.OIDofObject, tiObject, false)
+                        .ConfigureAwait(false);
                 }
+
                 await storage.CloseAsync().ConfigureAwait(false);
             }
-            IList<TransactionTypeHeader> tHeaders = await this.LoadAllAsync<TransactionTypeHeader>(tiType).ConfigureAwait(false);
-            foreach (TransactionTypeHeader tHeader in tHeaders)
+
+            IList<TransactionTypeHeader> tHeaders =
+                await LoadAllAsync<TransactionTypeHeader>(tiType).ConfigureAwait(false);
+            foreach (var tHeader in tHeaders)
             {
                 //reset number of records   
-                Type t = Type.GetType(tHeader.TypeName);
+                var t = Type.GetType(tHeader.TypeName);
                 SqoTypeInfo ti = null;
 
                 if (metaCache.Contains(t))
-                {
                     ti = metaCache.GetSqoTypeInfo(t);
-                }
                 else
-                {
                     ti = MetaExtractor.GetSqoTypeInfo(t);
-                }
-                ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+                var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
                 await serializer.SaveNrRecordsAsync(ti, tHeader.NumberOfRecords).ConfigureAwait(false);
 
                 await indexManager.ReBuildIndexesAfterCrashAsync(ti).ConfigureAwait(false);
             }
 
-            await this.DropTypeAsync(tiObjectHeader).ConfigureAwait(false);
-            await this.DropTypeAsync(tiType).ConfigureAwait(false);
-            this.DropTransactionLog();
-
+            await DropTypeAsync(tiObjectHeader).ConfigureAwait(false);
+            await DropTypeAsync(tiType).ConfigureAwait(false);
+            DropTransactionLog();
         }
 #endif
         public bool DropTransactionLog()
         {
             lock (_syncRoot)
             {
-                string fileName = path + Path.DirectorySeparatorChar + "transactionlog.slog";
-                
+                var fileName = path + Path.DirectorySeparatorChar + "transactionlog.slog";
+
 #if SILVERLIGHT
                 if (!this.useElevatedTrust)
                 {
@@ -1738,7 +1616,6 @@ namespace sqoDB
 
 
 #elif MONODROID
-				
 				if (File.Exists(fileName))
 				{
 					try
@@ -1755,8 +1632,6 @@ namespace sqoDB
 					}
 				}
 #elif UNITY3D
-
-
                 if (File.Exists(fileName))
                 {
                     try
@@ -1775,7 +1650,8 @@ namespace sqoDB
 #elif WinRT
                 try
                 {
-                    StorageFolder storageFolder = StorageFolder.GetFolderFromPathAsync(this.storageFolder.Path).AsTask().Result;
+                    StorageFolder storageFolder =
+ StorageFolder.GetFolderFromPathAsync(this.storageFolder.Path).AsTask().Result;
 
                     StorageFile file = storageFolder.GetFileAsync(Path.GetFileName(fileName)).AsTask().Result;
                     file.DeleteAsync(StorageDeleteOption.PermanentDelete).AsTask().Wait();
@@ -1809,95 +1685,91 @@ namespace sqoDB
                 return false;
             }
         }
+
         public TransactionsStorage GetTransactionLogStorage()
         {
-            
-
-            string fileFull = path + Path.DirectorySeparatorChar + "transactionlog.slog";
-            TransactionsStorage transactStorage = new TransactionsStorage(fileFull,this.useElevatedTrust);
+            var fileFull = path + Path.DirectorySeparatorChar + "transactionlog.slog";
+            var transactStorage = new TransactionsStorage(fileFull, useElevatedTrust);
             return transactStorage;
         }
+
         internal void RollbackObject(object oi, SqoTypeInfo ti)
         {
+            var objInfo = MetaExtractor.GetObjectInfo(oi, ti, metaCache);
 
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
+            serializer.NeedSaveComplexObject += serializer_NeedSaveComplexObject;
 
-            ObjectInfo objInfo = MetaExtractor.GetObjectInfo(oi, ti,metaCache);
+            var oldValuesOfIndexedFields = indexManager.PrepareUpdateIndexes(objInfo, ti);
 
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
-            serializer.NeedSaveComplexObject += new EventHandler<ComplexObjectEventArgs>(serializer_NeedSaveComplexObject);
+            serializer.SerializeObject(objInfo, rawSerializer);
 
-            Dictionary<string, object> oldValuesOfIndexedFields = this.indexManager.PrepareUpdateIndexes(objInfo, ti);
-
-            serializer.SerializeObject(objInfo, this.rawSerializer);
-
-            this.indexManager.UpdateIndexes(objInfo, ti, oldValuesOfIndexedFields);
-
+            indexManager.UpdateIndexes(objInfo, ti, oldValuesOfIndexedFields);
         }
 #if ASYNC
         internal async Task RollbackObjectAsync(object oi, SqoTypeInfo ti)
         {
+            var objInfo = MetaExtractor.GetObjectInfo(oi, ti, metaCache);
 
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
+            serializer.NeedSaveComplexObjectAsync += serializer_NeedSaveComplexObjectAsync;
 
-            ObjectInfo objInfo = MetaExtractor.GetObjectInfo(oi, ti, metaCache);
+            var oldValuesOfIndexedFields =
+                await indexManager.PrepareUpdateIndexesAsync(objInfo, ti).ConfigureAwait(false);
 
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
-            serializer.NeedSaveComplexObjectAsync += new ComplexObjectEventHandler(serializer_NeedSaveComplexObjectAsync);
+            await serializer.SerializeObjectAsync(objInfo, rawSerializer).ConfigureAwait(false);
 
-            Dictionary<string, object> oldValuesOfIndexedFields = await this.indexManager.PrepareUpdateIndexesAsync(objInfo, ti).ConfigureAwait(false);
-
-            await serializer.SerializeObjectAsync(objInfo, this.rawSerializer).ConfigureAwait(false);
-
-            await this.indexManager.UpdateIndexesAsync(objInfo, ti, oldValuesOfIndexedFields).ConfigureAwait(false);
-
+            await indexManager.UpdateIndexesAsync(objInfo, ti, oldValuesOfIndexedFields).ConfigureAwait(false);
         }
 #endif
         internal void RollbackDeletedObject(object obj, SqoTypeInfo ti)
         {
-            ObjectInfo objInfo = MetaExtractor.GetObjectInfo(obj, ti,metaCache);
+            var objInfo = MetaExtractor.GetObjectInfo(obj, ti, metaCache);
 
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
 
             lock (_syncRoot)
             {
                 serializer.RollbackDeleteObject(objInfo.Oid, ti);
-                this.indexManager.UpdateIndexes(objInfo, ti, new Dictionary<string, object>());
+                indexManager.UpdateIndexes(objInfo, ti, new Dictionary<string, object>());
             }
         }
 #if ASYNC
         internal async Task RollbackDeletedObjectAsync(object obj, SqoTypeInfo ti)
         {
-            ObjectInfo objInfo = MetaExtractor.GetObjectInfo(obj, ti, metaCache);
+            var objInfo = MetaExtractor.GetObjectInfo(obj, ti, metaCache);
 
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
 
 
             await serializer.RollbackDeleteObjectAsync(objInfo.Oid, ti).ConfigureAwait(false);
-            await this.indexManager.UpdateIndexesAsync(objInfo, ti, new Dictionary<string, object>()).ConfigureAwait(false);
-
+            await indexManager.UpdateIndexesAsync(objInfo, ti, new Dictionary<string, object>()).ConfigureAwait(false);
         }
-       
+
 #endif
-       
+
         internal void TransactionCommitStatus(bool started)
         {
-            this.rawSerializer.TransactionCommitStatus(started);
+            rawSerializer.TransactionCommitStatus(started);
         }
 
-        internal byte[] GetObjectBytes(int oid,SqoTypeInfo ti)
+        internal byte[] GetObjectBytes(int oid, SqoTypeInfo ti)
         {
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
             return serializer.ReadObjectBytes(oid, ti);
         }
 #if ASYNC
         internal async Task<byte[]> GetObjectBytesAsync(int oid, SqoTypeInfo ti)
         {
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
             return await serializer.ReadObjectBytesAsync(oid, ti).ConfigureAwait(false);
         }
 #endif
+
         #endregion
 
         #region EVENTS
+
 #if UNITY3D
         protected virtual void OnLoadingObject(LoadingObjectEventArgs args)
         {
@@ -1940,39 +1812,28 @@ namespace sqoDB
         protected virtual void OnLoadingObject(LoadingObjectEventArgs args)
         {
             if (LoadingObject != null)
-            {
-                if (args.ObjectType != typeof(sqoDB.MetaObjects.RawdataInfo) && args.ObjectType != typeof(sqoDB.Indexes.IndexInfo2))
-                {
+                if (args.ObjectType != typeof(RawdataInfo) && args.ObjectType != typeof(IndexInfo2))
                     LoadingObject(this, args);
-                }
-            }
         }
-        protected virtual void OnLoadedObject(int oid,object obj)
+
+        protected virtual void OnLoadedObject(int oid, object obj)
         {
             if (LoadedObject != null)
-            {
-                if (obj.GetType() != typeof(sqoDB.MetaObjects.RawdataInfo) && obj.GetType() != typeof(sqoDB.Indexes.IndexInfo2))
+                if (obj.GetType() != typeof(RawdataInfo) && obj.GetType() != typeof(IndexInfo2))
                 {
-                    LoadedObjectEventArgs args = new LoadedObjectEventArgs(oid, obj);
+                    var args = new LoadedObjectEventArgs(oid, obj);
                     LoadedObject(this, args);
                 }
-            }
         }
-       
+
         protected void OnNeedSaveComplexObject(ComplexObjectEventArgs args)
         {
-            if (NeedSaveComplexObject != null)
-            {
-                NeedSaveComplexObject(this, args);
-            }
+            if (NeedSaveComplexObject != null) NeedSaveComplexObject(this, args);
         }
 #if ASYNC
         protected async Task OnNeedSaveComplexObjectAsync(ComplexObjectEventArgs args)
         {
-            if (NeedSaveComplexObjectAsync != null)
-            {
-                await NeedSaveComplexObjectAsync(this, args).ConfigureAwait(false);
-            }
+            if (NeedSaveComplexObjectAsync != null) await NeedSaveComplexObjectAsync(this, args).ConfigureAwait(false);
         }
 #endif
 
@@ -1980,14 +1841,12 @@ namespace sqoDB
 #endif
 #if UNITY3D || CF || MONODROID
 #else
-        protected  void OnIndexesSaveAsyncFinished(IndexesSaveAsyncFinishedArgs e)
+        protected void OnIndexesSaveAsyncFinished(IndexesSaveAsyncFinishedArgs e)
         {
-            if (this.IndexesSaveAsyncFinished != null)
-            {
-                this.IndexesSaveAsyncFinished(this, e);
-            }
+            if (IndexesSaveAsyncFinished != null) IndexesSaveAsyncFinished(this, e);
         }
 #endif
+
         #endregion
 
         #region OPERATIONS
@@ -1998,67 +1857,56 @@ namespace sqoDB
             {
                 SerializerFactory.CloseAll();
                 rawSerializer.Close();
-                
-
             }
         }
-        #if ASYNC
+#if ASYNC
         internal async Task CloseAsync()
         {
             await SerializerFactory.CloseAllAsync().ConfigureAwait(false);
             await rawSerializer.CloseAsync().ConfigureAwait(false);
-
         }
 #endif
         internal void Flush()
         {
-
             SerializerFactory.FlushAll();
-            this.rawSerializer.Flush();
+            rawSerializer.Flush();
         }
 #if ASYNC
         internal async Task FlushAsync()
         {
-
             await SerializerFactory.FlushAllAsync().ConfigureAwait(false);
-            await this.rawSerializer.FlushAsync().ConfigureAwait(false);
+            await rawSerializer.FlushAsync().ConfigureAwait(false);
         }
 #endif
         internal void Flush(SqoTypeInfo ti)
         {
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
             serializer.Flush();
         }
 #if ASYNC
         internal async Task FlushAsync(SqoTypeInfo ti)
         {
-            ObjectSerializer serializer = SerializerFactory.GetSerializer(this.path, GetFileByType(ti), useElevatedTrust);
+            var serializer = SerializerFactory.GetSerializer(path, GetFileByType(ti), useElevatedTrust);
             await serializer.FlushAsync().ConfigureAwait(false);
         }
 #endif
-        
-
-
 
 
         internal ISqoFile GetRawFile()
         {
-            return this.rawSerializer.File;
+            return rawSerializer.File;
         }
 
         internal string GetFileName(SqoTypeInfo ti)
         {
-            string fileName = "";
+            var fileName = "";
             if (SiaqodbConfigurator.EncryptedDatabase)
-            {
-                fileName = this.path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".esqo";
-            }
+                fileName = path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".esqo";
             else
-            {
-                fileName = this.path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".sqo";
-            }
+                fileName = path + Path.DirectorySeparatorChar + GetFileByType(ti) + ".sqo";
             return fileName;
         }
     }
-        #endregion
+
+    #endregion
 }

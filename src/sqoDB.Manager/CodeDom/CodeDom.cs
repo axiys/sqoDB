@@ -11,11 +11,12 @@ namespace sqoDB.Manager
 {
     public class CodeDom
     {
-        private List<CodeCompileUnit> listCompileUnits = new List<CodeCompileUnit>();
         private readonly List<CodeNamespace> listNamespaces = new List<CodeNamespace>();
 
         private readonly StringCollection listReferencedAssemblies =
             new StringCollection { "System.dll" };
+
+        private List<CodeCompileUnit> listCompileUnits = new List<CodeCompileUnit>();
 
         public CodeCompileUnit CompileUnit
         {

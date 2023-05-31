@@ -128,11 +128,10 @@ namespace sqoDB
         /// </summary>
         private class Nominator : ExpressionVisitor
         {
+            private readonly Func<Expression, bool> fnCanBeEvaluated;
             private List<Expression> candidates;
 
             private bool cannotBeEvaluated;
-
-            private readonly Func<Expression, bool> fnCanBeEvaluated;
 
 
             internal Nominator(Func<Expression, bool> fnCanBeEvaluated)

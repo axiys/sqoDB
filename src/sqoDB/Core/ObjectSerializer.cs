@@ -12,8 +12,8 @@ namespace sqoDB.Core
     internal partial class ObjectSerializer
     {
         private readonly object _syncRoot = new object();
-        private ISqoFile file;
         private readonly string filePath;
+        private ISqoFile file;
 
         public ObjectSerializer(string filePath, bool useElevatedTrust)
         {

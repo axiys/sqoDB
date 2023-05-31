@@ -12,9 +12,9 @@ namespace sqoDB
 #endif
         class LazyObjectList<T> : IObjectList<T>
     {
-        private LazyEnumerator<T> enumerator;
         private readonly List<int> oids;
         private readonly Siaqodb siaqodb;
+        private LazyEnumerator<T> enumerator;
 
         public LazyObjectList(Siaqodb siaqodb, List<int> oids)
         {

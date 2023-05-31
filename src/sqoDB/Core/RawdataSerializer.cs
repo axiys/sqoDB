@@ -17,13 +17,13 @@ namespace sqoDB.Core
         private static readonly object _syncRoot = new object();
 
         private static readonly Dictionary<string, ISqoFile> filesCache = new Dictionary<string, ISqoFile>();
-        private bool _transactionCommitStarted;
-        private ISqoFile file;
         private readonly RawdataManager manager;
 
 
         private readonly StorageEngine storageEngine;
         private readonly bool useElevatedTrust;
+        private bool _transactionCommitStarted;
+        private ISqoFile file;
 
         public RawdataSerializer(StorageEngine storageEngine, bool useElevatedTrust)
         {

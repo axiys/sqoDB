@@ -16,11 +16,11 @@ namespace sqoDB
             , ISqoAsyncEnumerator<T>
 #endif
     {
-        private int currentIndex;
         private readonly List<int> oids;
         private readonly List<string> propertiesIncluded;
 
         private readonly Siaqodb siaqodb;
+        private int currentIndex;
 
         public LazyEnumerator(Siaqodb siaqodb, List<int> oids)
         {

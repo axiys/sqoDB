@@ -2,8 +2,8 @@
 {
     internal class ObjectRow
     {
-        internal object[] cells;
         private readonly ObjectTable table;
+        internal object[] cells;
 
         public ObjectRow(ObjectTable table)
         {

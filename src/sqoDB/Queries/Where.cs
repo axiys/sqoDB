@@ -12,7 +12,7 @@ namespace sqoDB.Queries
         public Where(string fieldName, OperationType opType, object val)
         {
             AttributeName.Add(fieldName);
-            this.OperationType = opType;
+            OperationType = opType;
             Value = val;
         }
 

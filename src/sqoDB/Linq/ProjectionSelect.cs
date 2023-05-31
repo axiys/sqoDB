@@ -291,12 +291,12 @@ namespace sqoDB
 #endif
     {
         private readonly List<SqoColumn> columns;
+        private readonly Func<ProjectionRow, T> projector;
 #if ASYNC
         private int currentColumnIndex = 0;
 #endif
         private int currentIndex;
         internal List<int> oids;
-        private readonly Func<ProjectionRow, T> projector;
         internal Siaqodb siaqodb;
 
         internal EnumeratorSelect(List<SqoColumn> columns, Func<ProjectionRow, T> projector)
