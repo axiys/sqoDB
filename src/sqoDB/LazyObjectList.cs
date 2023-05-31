@@ -1,46 +1,42 @@
-﻿using System;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using sqoDB.Exceptions;
 using sqoDB.Meta;
-
 
 namespace sqoDB
 {
 #if KEVAST
     internal
 #else
-        public
+    public
 #endif
-    class LazyObjectList<T> : IObjectList<T>
+        class LazyObjectList<T> : IObjectList<T>
     {
-        List<int> oids;
-        LazyEnumerator<T> enumerator;
-        Siaqodb siaqodb;
-        public LazyObjectList(Siaqodb siaqodb,List<int> oids)
+        private LazyEnumerator<T> enumerator;
+        private readonly List<int> oids;
+        private readonly Siaqodb siaqodb;
+
+        public LazyObjectList(Siaqodb siaqodb, List<int> oids)
         {
             this.oids = oids;
             this.siaqodb = siaqodb;
         }
+
         #region IEnumerable<T> Members
 
         public IEnumerator<T> GetEnumerator()
         {
-            if (this.enumerator == null)
-            {
-                this.enumerator = new LazyEnumerator<T>(this.siaqodb, oids);
-            }
-            return this.enumerator;
+            if (enumerator == null) enumerator = new LazyEnumerator<T>(siaqodb, oids);
+            return enumerator;
         }
 
         #endregion
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return this.enumerator;
+            return enumerator;
         }
 
         #endregion
@@ -49,32 +45,32 @@ namespace sqoDB
 
         public int IndexOf(T item)
         {
-            SqoTypeInfo ti = siaqodb.CheckDBAndGetSqoTypeInfo<T>();
-            ObjectInfo objInfo = MetaExtractor.GetObjectInfo(item, ti,siaqodb.metaCache);
+            var ti = siaqodb.CheckDBAndGetSqoTypeInfo<T>();
+            var objInfo = MetaExtractor.GetObjectInfo(item, ti, siaqodb.metaCache);
             return oids.IndexOf(objInfo.Oid);
         }
 
         public void Insert(int index, T item)
         {
-            throw new SiaqodbException("LazyObjectList does not support this operation because objects are loaded on demand from db");
+            throw new SiaqodbException(
+                "LazyObjectList does not support this operation because objects are loaded on demand from db");
         }
 
         public void RemoveAt(int index)
         {
-            throw new SiaqodbException("LazyObjectList does not support this operation because objects are loaded on demand from db");
+            throw new SiaqodbException(
+                "LazyObjectList does not support this operation because objects are loaded on demand from db");
         }
 
         public T this[int index]
         {
             get
             {
-                T obj = siaqodb.LoadObjectByOID<T>(this.oids[index]);
+                var obj = siaqodb.LoadObjectByOID<T>(oids[index]);
                 return obj;
             }
-            set
-            {
-                throw new SiaqodbException("LazyObjectList does not support this operation because objects are loaded on demand from db");
-            }
+            set => throw new SiaqodbException(
+                "LazyObjectList does not support this operation because objects are loaded on demand from db");
         }
 
         #endregion
@@ -83,45 +79,38 @@ namespace sqoDB
 
         public void Add(T item)
         {
-            throw new SiaqodbException("LazyObjectList does not support this operation because objects are loaded on demand from db");
+            throw new SiaqodbException(
+                "LazyObjectList does not support this operation because objects are loaded on demand from db");
         }
 
         public void Clear()
         {
-            throw new SiaqodbException("LazyObjectList does not support this operation because objects are loaded on demand from db");
+            throw new SiaqodbException(
+                "LazyObjectList does not support this operation because objects are loaded on demand from db");
         }
 
         public bool Contains(T item)
         {
-            SqoTypeInfo ti = siaqodb.CheckDBAndGetSqoTypeInfo<T>();
-            ObjectInfo objInfo = MetaExtractor.GetObjectInfo(item, ti,siaqodb.metaCache);
+            var ti = siaqodb.CheckDBAndGetSqoTypeInfo<T>();
+            var objInfo = MetaExtractor.GetObjectInfo(item, ti, siaqodb.metaCache);
             return oids.Contains(objInfo.Oid);
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
-            for (int i = 0; i < oids.Count; i++)
-            {
-                array[arrayIndex + i] = siaqodb.LoadObjectByOID<T>(oids[i]);  
-            }
+            for (var i = 0; i < oids.Count; i++) array[arrayIndex + i] = siaqodb.LoadObjectByOID<T>(oids[i]);
         }
 
-        public int Count
-        {
-            get { return oids.Count; }
-        }
+        public int Count => oids.Count;
 
-        public bool IsReadOnly
-        {
-            get { return true; }
-        }
+        public bool IsReadOnly => true;
 
         public bool Remove(T item)
         {
-            throw new SiaqodbException("LazyObjectList does not support this operation because objects are loaded on demand from db");
+            throw new SiaqodbException(
+                "LazyObjectList does not support this operation because objects are loaded on demand from db");
         }
 
         #endregion
     }
-    
 }

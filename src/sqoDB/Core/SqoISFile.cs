@@ -1,5 +1,4 @@
 ﻿#if SILVERLIGHT
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +46,8 @@ namespace sqoDB.Core
             {
                 file.Flush();
                 byte[] bytes = file.GetBuffer();
-                phisicalFile = new IsolatedStorageFileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, isf);
+                phisicalFile =
+ new IsolatedStorageFileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, isf);
 
                 phisicalFile.Seek(0, SeekOrigin.Begin);
                 phisicalFile.Write(bytes, 0, bytes.Length);
@@ -79,7 +79,8 @@ namespace sqoDB.Core
             {
                 await file.FlushAsync().ConfigureAwait(false);
                 byte[] bytes = file.GetBuffer();
-                phisicalFile = new IsolatedStorageFileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, isf);
+                phisicalFile =
+ new IsolatedStorageFileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, isf);
 
                 phisicalFile.Seek(0, SeekOrigin.Begin);
                 await phisicalFile.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);

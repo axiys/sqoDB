@@ -1,103 +1,72 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using sqoDB.Meta;
-using System.IO;
-
+﻿using System.Collections.Generic;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB.Core
 {
-    class SerializerFactory
+    internal class SerializerFactory
     {
+        private static readonly Dictionary<string, ObjectSerializer> serializers =
+            new Dictionary<string, ObjectSerializer>();
 
-        static Dictionary<string, ObjectSerializer> serializers = new Dictionary<string, ObjectSerializer>();
-        static readonly object _syncRoot = new object();
-        public static ObjectSerializer GetSerializer(string folderPath, string typeName,bool useElevatedTrust)
+        private static readonly object _syncRoot = new object();
+
+        public static ObjectSerializer GetSerializer(string folderPath, string typeName, bool useElevatedTrust)
         {
             return GetSerializer(folderPath, typeName, useElevatedTrust, "sqo");
         }
-        public static ObjectSerializer GetSerializer(string folderPath, string typeName, bool useElevatedTrust, string fileExtension)
+
+        public static ObjectSerializer GetSerializer(string folderPath, string typeName, bool useElevatedTrust,
+            string fileExtension)
         {
             string fileFull = null;
             if (SiaqodbConfigurator.EncryptedDatabase)
-            {
-                fileFull = folderPath + Path.DirectorySeparatorChar + typeName + ".e"+fileExtension;
-            }
+                fileFull = folderPath + Path.DirectorySeparatorChar + typeName + ".e" + fileExtension;
             else
-            {
-                fileFull = folderPath + Path.DirectorySeparatorChar + typeName + "."+fileExtension;
-            }
+                fileFull = folderPath + Path.DirectorySeparatorChar + typeName + "." + fileExtension;
             lock (_syncRoot)
             {
                 if (serializers.ContainsKey(fileFull))
                 {
-                    if (serializers[fileFull].IsClosed)
-                    {
-                        serializers[fileFull].Open(useElevatedTrust);
-                    }
+                    if (serializers[fileFull].IsClosed) serializers[fileFull].Open(useElevatedTrust);
 
                     return serializers[fileFull];
                 }
-                else
-                {
-                    ObjectSerializer ser = new ObjectSerializer(fileFull, useElevatedTrust);
-                    serializers[fileFull] = ser;
-                    return ser;
-                }
+
+                var ser = new ObjectSerializer(fileFull, useElevatedTrust);
+                serializers[fileFull] = ser;
+                return ser;
             }
         }
 #if WinRT
-
 #endif
         public static void CloseAll()
         {
             lock (_syncRoot)
             {
-                foreach (string key in serializers.Keys)
-                {
-                    serializers[key].Close();
-                }
+                foreach (var key in serializers.Keys) serializers[key].Close();
                 serializers.Clear();
             }
-
         }
 #if ASYNC
         public static async Task CloseAllAsync()
         {
-
-            foreach (string key in serializers.Keys)
-            {
-                await serializers[key].CloseAsync().ConfigureAwait(false);
-            }
-
-
+            foreach (var key in serializers.Keys) await serializers[key].CloseAsync().ConfigureAwait(false);
         }
 
 #endif
-		public static void FlushAll()
-		{
+        public static void FlushAll()
+        {
             lock (_syncRoot)
             {
-                foreach (string key in serializers.Keys)
-                {
-                    serializers[key].Flush();
-                }
+                foreach (var key in serializers.Keys) serializers[key].Flush();
             }
-
-		}
+        }
 #if ASYNC
         public static async Task FlushAllAsync()
         {
-
-            foreach (string key in serializers.Keys)
-            {
-                await serializers[key].FlushAsync().ConfigureAwait(false);
-            }
-
+            foreach (var key in serializers.Keys) await serializers[key].FlushAsync().ConfigureAwait(false);
         }
 
 #endif
@@ -105,19 +74,16 @@ namespace sqoDB.Core
         {
             lock (_syncRoot)
             {
-                List<string> keysToBeRemoved = new List<string>();
-                foreach (string key in serializers.Keys)
-                {
-                    if (Path.GetDirectoryName(key).TrimEnd(Path.DirectorySeparatorChar) == folderName.TrimEnd(Path.DirectorySeparatorChar))
+                var keysToBeRemoved = new List<string>();
+                foreach (var key in serializers.Keys)
+                    if (Path.GetDirectoryName(key).TrimEnd(Path.DirectorySeparatorChar) ==
+                        folderName.TrimEnd(Path.DirectorySeparatorChar))
                     {
                         serializers[key].Close();
                         keysToBeRemoved.Add(key);
                     }
-                }
-                foreach (string k in keysToBeRemoved)
-                {
-                    serializers.Remove(k);
-                }
+
+                foreach (var k in keysToBeRemoved) serializers.Remove(k);
             }
         }
     }

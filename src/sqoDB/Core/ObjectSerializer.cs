@@ -1,106 +1,99 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
-using sqoDB;
-using sqoDB.Core;
-using sqoDB.Meta;
-using sqoDB.Exceptions;
-using sqoDB.Utilities;
-using System.Collections;
 using System.Reflection;
+using sqoDB.Meta;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB.Core
 {
-
     [Obfuscation(Feature = "Apply to member * when event: renaming", Exclude = true)]
-    partial class  ObjectSerializer
+    internal partial class ObjectSerializer
     {
-        string filePath;
-        ISqoFile file;
-        readonly object _syncRoot = new object();
-       
-        public ObjectSerializer(string filePath,bool useElevatedTrust)
+        private readonly object _syncRoot = new object();
+        private ISqoFile file;
+        private readonly string filePath;
+
+        public ObjectSerializer(string filePath, bool useElevatedTrust)
         {
             this.filePath = filePath;
-            file = FileFactory.Create(filePath, false,useElevatedTrust);
+            file = FileFactory.Create(filePath, false, useElevatedTrust);
         }
+
+        public bool IsClosed => file.IsClosed;
+
         private byte[] SerializeTypeToBuffer(SqoTypeInfo ti)
         {
-            byte[] headerSize = ByteConverter.IntToByteArray(ti.Header.headerSize);
-            byte[] typeNameSize = ByteConverter.IntToByteArray(ti.Header.typeNameSize);
-            byte[] typeName = ByteConverter.SerializeValueType(ti.TypeName, typeof(string), ti.Header.version);
-            byte[] lastUpdate = ByteConverter.SerializeValueType(DateTime.Now, typeof(DateTime), ti.Header.version);
-            byte[] numberOfRecords = ByteConverter.IntToByteArray(ti.Header.numberOfRecords);
-            byte[] positionFirstRecord = ByteConverter.IntToByteArray(ti.Header.positionFirstRecord);
-            byte[] lengthOfRecord = ByteConverter.IntToByteArray(ti.Header.lengthOfRecord);
-            byte[] version = ByteConverter.IntToByteArray(ti.Header.version);
-            byte[] nrFields = ByteConverter.IntToByteArray(ti.Header.NrFields);
-            byte[] TID = ByteConverter.IntToByteArray(ti.Header.TID);
-            byte[] unused1 = ByteConverter.IntToByteArray(ti.Header.Unused1);
-            byte[] unused2 = ByteConverter.IntToByteArray(ti.Header.Unused2);
-            byte[] unused3 = ByteConverter.IntToByteArray(ti.Header.Unused3);
+            var headerSize = ByteConverter.IntToByteArray(ti.Header.headerSize);
+            var typeNameSize = ByteConverter.IntToByteArray(ti.Header.typeNameSize);
+            var typeName = ByteConverter.SerializeValueType(ti.TypeName, typeof(string), ti.Header.version);
+            var lastUpdate = ByteConverter.SerializeValueType(DateTime.Now, typeof(DateTime), ti.Header.version);
+            var numberOfRecords = ByteConverter.IntToByteArray(ti.Header.numberOfRecords);
+            var positionFirstRecord = ByteConverter.IntToByteArray(ti.Header.positionFirstRecord);
+            var lengthOfRecord = ByteConverter.IntToByteArray(ti.Header.lengthOfRecord);
+            var version = ByteConverter.IntToByteArray(ti.Header.version);
+            var nrFields = ByteConverter.IntToByteArray(ti.Header.NrFields);
+            var TID = ByteConverter.IntToByteArray(ti.Header.TID);
+            var unused1 = ByteConverter.IntToByteArray(ti.Header.Unused1);
+            var unused2 = ByteConverter.IntToByteArray(ti.Header.Unused2);
+            var unused3 = ByteConverter.IntToByteArray(ti.Header.Unused3);
 
-            byte[] tArray = Combine(headerSize, typeNameSize, typeName, lastUpdate, numberOfRecords,
-                                        positionFirstRecord, lengthOfRecord, version,
-                                        nrFields, TID, unused1, unused2, unused3);
-            int fieldIndex = 1;
-            byte[][] fullArray = new byte[ti.Fields.Count + 1][];
+            var tArray = Combine(headerSize, typeNameSize, typeName, lastUpdate, numberOfRecords,
+                positionFirstRecord, lengthOfRecord, version,
+                nrFields, TID, unused1, unused2, unused3);
+            var fieldIndex = 1;
+            var fullArray = new byte[ti.Fields.Count + 1][];
             fullArray[0] = tArray;
-            foreach (FieldSqoInfo ai in ti.Fields)
+            foreach (var ai in ti.Fields)
             {
-                byte[] SizeOfName = ByteConverter.IntToByteArray(ai.Header.SizeOfName);
-                byte[] aiName = ByteConverter.SerializeValueType(ai.Name, typeof(string), ti.Header.version);
-                Array.Resize<byte>(ref aiName, 200);
-                byte[] attLength = ByteConverter.IntToByteArray(ai.Header.Length);
-                byte[] positionInRecord = ByteConverter.IntToByteArray(ai.Header.PositionInRecord);
-                byte[] nrOrder = ByteConverter.IntToByteArray(ai.Header.RealLength);
-                byte[] typeId = ByteConverter.IntToByteArray(ai.AttributeTypeId);
+                var SizeOfName = ByteConverter.IntToByteArray(ai.Header.SizeOfName);
+                var aiName = ByteConverter.SerializeValueType(ai.Name, typeof(string), ti.Header.version);
+                Array.Resize(ref aiName, 200);
+                var attLength = ByteConverter.IntToByteArray(ai.Header.Length);
+                var positionInRecord = ByteConverter.IntToByteArray(ai.Header.PositionInRecord);
+                var nrOrder = ByteConverter.IntToByteArray(ai.Header.RealLength);
+                var typeId = ByteConverter.IntToByteArray(ai.AttributeTypeId);
 
                 fullArray[fieldIndex] = Combine(SizeOfName, aiName, attLength, positionInRecord, nrOrder, typeId);
 
                 fieldIndex++;
-
             }
+
             return Combine(fullArray);
         }
+
         public void SerializeType(SqoTypeInfo ti)
         {
-
-            file.Write(0,SerializeTypeToBuffer(ti));
-
+            file.Write(0, SerializeTypeToBuffer(ti));
         }
 #if ASYNC
         public async Task SerializeTypeAsync(SqoTypeInfo ti)
         {
             await file.WriteAsync(0, SerializeTypeToBuffer(ti)).ConfigureAwait(false);
-
         }
 #endif
         private SqoTypeInfo DeserializeSqoTypeInfoFromBuffer(byte[] readFullSqoTypeInfo, bool loadRealType)
         {
-            SqoTypeInfo tInfo = new SqoTypeInfo();
+            var tInfo = new SqoTypeInfo();
             tInfo.Header.headerSize = readFullSqoTypeInfo.Length;
             try
             {
                 //reader.Close();
-                byte[] typeNameSize = GetBuffer(readFullSqoTypeInfo, 4, 4);
+                var typeNameSize = GetBuffer(readFullSqoTypeInfo, 4, 4);
                 tInfo.Header.typeNameSize = ByteConverter.ByteArrayToInt(typeNameSize);
                 //read versionFirst
-                byte[] version = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 28, 4);
+                var version = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 28, 4);
                 tInfo.Header.version = ByteConverter.ByteArrayToInt(version);
 
-                byte[] typeName = GetBuffer(readFullSqoTypeInfo, 8, tInfo.Header.typeNameSize);
-                tInfo.TypeName = (string)ByteConverter.DeserializeValueType(typeof(string), typeName, tInfo.Header.version);
+                var typeName = GetBuffer(readFullSqoTypeInfo, 8, tInfo.Header.typeNameSize);
+                tInfo.TypeName =
+                    (string)ByteConverter.DeserializeValueType(typeof(string), typeName, tInfo.Header.version);
 
                 if (loadRealType)
                 {
 #if SILVERLIGHT
-                        string[] tinfoArr=tInfo.TypeName.Split(',');
+                        string[] tinfoArr = tInfo.TypeName.Split(',');
                         string fullTypeName = tInfo.TypeName;
                         if (tinfoArr.Length == 2 && !tInfo.TypeName.StartsWith("sqoDB.Indexes.BTreeNode") && !tInfo.TypeName.StartsWith("KeVaSt.BTreeNode"))//written with .net version
                         {
@@ -112,14 +105,15 @@ namespace sqoDB.Core
                         {
                             tInfo.Type = Type.GetType(fullTypeName);
                         }
-                       
+
 #else
                     string[] tinfoArr = null;
-                    int indexOfGenericsEnd = tInfo.TypeName.LastIndexOf(']');
+                    var indexOfGenericsEnd = tInfo.TypeName.LastIndexOf(']');
                     if (indexOfGenericsEnd > 0)
                     {
-                        string substringStart = tInfo.TypeName.Substring(0, indexOfGenericsEnd);
-                        string substringEnd = tInfo.TypeName.Substring(indexOfGenericsEnd, tInfo.TypeName.Length - indexOfGenericsEnd);
+                        var substringStart = tInfo.TypeName.Substring(0, indexOfGenericsEnd);
+                        var substringEnd = tInfo.TypeName.Substring(indexOfGenericsEnd,
+                            tInfo.TypeName.Length - indexOfGenericsEnd);
                         tinfoArr = substringEnd.Split(',');
                         tinfoArr[0] = substringStart + "]";
                     }
@@ -127,8 +121,10 @@ namespace sqoDB.Core
                     {
                         tinfoArr = tInfo.TypeName.Split(',');
                     }
-                    string fullTypeName = tInfo.TypeName;
-                    if (tinfoArr.Length > 2 && !tInfo.TypeName.StartsWith("sqoDB.Indexes.BTreeNode") && !tInfo.TypeName.StartsWith("KeVaSt.BTreeNode"))//written with Silevrlight version
+
+                    var fullTypeName = tInfo.TypeName;
+                    if (tinfoArr.Length > 2 && !tInfo.TypeName.StartsWith("sqoDB.Indexes.BTreeNode") &&
+                        !tInfo.TypeName.StartsWith("KeVaSt.BTreeNode")) //written with Silevrlight version
                     {
                         fullTypeName = tinfoArr[0] + "," + tinfoArr[1];
                         tInfo.Type = Type.GetType(fullTypeName);
@@ -140,89 +136,88 @@ namespace sqoDB.Core
                     }
 #endif
                 }
-                byte[] lastUpdate = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 8, 8);
-                tInfo.Header.lastUpdated = (DateTime)ByteConverter.DeserializeValueType(typeof(DateTime), lastUpdate, tInfo.Header.version);
 
-                byte[] nrRecords = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 16, 4);
+                var lastUpdate = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 8, 8);
+                tInfo.Header.lastUpdated =
+                    (DateTime)ByteConverter.DeserializeValueType(typeof(DateTime), lastUpdate, tInfo.Header.version);
+
+                var nrRecords = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 16, 4);
                 tInfo.Header.numberOfRecords = ByteConverter.ByteArrayToInt(nrRecords);
 
-                byte[] positionFirstRecord = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 20, 4);
+                var positionFirstRecord = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 20, 4);
                 tInfo.Header.positionFirstRecord = ByteConverter.ByteArrayToInt(positionFirstRecord);
 
-                byte[] lengthRecord = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 24, 4);
+                var lengthRecord = GetBuffer(readFullSqoTypeInfo, tInfo.Header.typeNameSize + 24, 4);
                 tInfo.Header.lengthOfRecord = ByteConverter.ByteArrayToInt(lengthRecord);
 
 
-                int currentPosition = tInfo.Header.typeNameSize + 32;
-                byte[] nrFields = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
+                var currentPosition = tInfo.Header.typeNameSize + 32;
+                var nrFields = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
                 tInfo.Header.NrFields = ByteConverter.ByteArrayToInt(nrFields);
 
                 if (tInfo.Header.version <= -30) //version >= 3.0
                 {
                     currentPosition += 4;
-                    byte[] TID = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
+                    var TID = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
                     tInfo.Header.TID = ByteConverter.ByteArrayToInt(TID);
 
                     currentPosition += 4;
-                    byte[] unused1 = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
+                    var unused1 = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
                     tInfo.Header.Unused1 = ByteConverter.ByteArrayToInt(unused1);
 
                     currentPosition += 4;
-                    byte[] unused2 = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
+                    var unused2 = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
                     tInfo.Header.Unused2 = ByteConverter.ByteArrayToInt(unused2);
 
                     currentPosition += 4;
-                    byte[] unused3 = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
+                    var unused3 = GetBuffer(readFullSqoTypeInfo, currentPosition, 4);
                     tInfo.Header.Unused3 = ByteConverter.ByteArrayToInt(unused3);
                 }
 
 
-                for (int i = 0; i < tInfo.Header.NrFields; i++)
+                for (var i = 0; i < tInfo.Header.NrFields; i++)
                 {
-
-                    FieldSqoInfo ai = new FieldSqoInfo();
-                    int currentPositionField = (i * MetaExtractor.FieldSize) + currentPosition + 4;
-                    byte[] sizeOfName = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
+                    var ai = new FieldSqoInfo();
+                    var currentPositionField = i * MetaExtractor.FieldSize + currentPosition + 4;
+                    var sizeOfName = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
                     ai.Header.SizeOfName = ByteConverter.ByteArrayToInt(sizeOfName);
 
                     currentPositionField += 4;
-                    byte[] name = GetBuffer(readFullSqoTypeInfo, currentPositionField, ai.Header.SizeOfName);
+                    var name = GetBuffer(readFullSqoTypeInfo, currentPositionField, ai.Header.SizeOfName);
                     ai.Name = (string)ByteConverter.DeserializeValueType(typeof(string), name, tInfo.Header.version);
 
                     currentPositionField += 200;
-                    byte[] length = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
+                    var length = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
                     ai.Header.Length = ByteConverter.ByteArrayToInt(length);
 
                     currentPositionField += 4;
-                    byte[] position = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
+                    var position = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
                     ai.Header.PositionInRecord = ByteConverter.ByteArrayToInt(position);
 
                     currentPositionField += 4;
-                    byte[] nrOrder = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
+                    var nrOrder = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
                     ai.Header.RealLength = ByteConverter.ByteArrayToInt(nrOrder);
 
                     currentPositionField += 4;
-                    byte[] typeId = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
+                    var typeId = GetBuffer(readFullSqoTypeInfo, currentPositionField, 4);
                     ai.AttributeTypeId = ByteConverter.ByteArrayToInt(typeId);
 
                     if (loadRealType)
                     {
-
                         ai.FInfo = MetaExtractor.FindField(tInfo.Type, ai.Name);
                         MetaExtractor.FindAddConstraints(tInfo, ai);
                         MetaExtractor.FindAddIndexes(tInfo, ai);
+                    }
 
-                    }
-                    if (ai.AttributeTypeId == MetaExtractor.complexID || ai.AttributeTypeId == MetaExtractor.dictionaryID || ai.AttributeTypeId==MetaExtractor.documentID)
+                    if (ai.AttributeTypeId == MetaExtractor.complexID ||
+                        ai.AttributeTypeId == MetaExtractor.dictionaryID ||
+                        ai.AttributeTypeId == MetaExtractor.documentID)
                     {
-                        if (loadRealType)
-                        {
-                            ai.AttributeType = ai.FInfo.FieldType;
-                        }
+                        if (loadRealType) ai.AttributeType = ai.FInfo.FieldType;
                     }
-                    else if (ai.Header.Length - 1 == MetaExtractor.GetSizeOfField(ai.AttributeTypeId))//is Nullable<>
+                    else if (ai.Header.Length - 1 == MetaExtractor.GetSizeOfField(ai.AttributeTypeId)) //is Nullable<>
                     {
-                        Type fGen = typeof(Nullable<>);
+                        var fGen = typeof(Nullable<>);
                         ai.AttributeType = fGen.MakeGenericType(Cache.Cache.GetTypebyID(ai.AttributeTypeId));
                     }
                     else if (MetaExtractor.IsTextType(ai.AttributeTypeId))
@@ -230,7 +225,7 @@ namespace sqoDB.Core
                         ai.AttributeType = typeof(string);
                         ai.IsText = true;
                     }
-                    else if (ai.AttributeTypeId > MetaExtractor.ArrayTypeIDExtra)//is IList<> or Array
+                    else if (ai.AttributeTypeId > MetaExtractor.ArrayTypeIDExtra) //is IList<> or Array
                     {
                         if (loadRealType)
                         {
@@ -241,26 +236,22 @@ namespace sqoDB.Core
                             if (ai.AttributeTypeId - MetaExtractor.ArrayTypeIDExtra == MetaExtractor.complexID
                                 || ai.AttributeTypeId - MetaExtractor.ArrayTypeIDExtra == MetaExtractor.jaggedArrayID)
                             {
-
                             }
                             else
                             {
-                                Type elementType = Cache.Cache.GetTypebyID(ai.AttributeTypeId);
+                                var elementType = Cache.Cache.GetTypebyID(ai.AttributeTypeId);
 #if CF
                                 ai.AttributeType = Array.CreateInstance(elementType,0).GetType();
 #else
                                 ai.AttributeType = elementType.MakeArrayType();
 #endif
                             }
+                        }
 
-                        }
                         if (ai.AttributeTypeId - MetaExtractor.ArrayTypeIDExtra == MetaExtractor.textID)
-                        {
                             ai.IsText = true;
-                        }
-                           
                     }
-                    else if (ai.AttributeTypeId > MetaExtractor.FixedArrayTypeId)//is IList<> or Array
+                    else if (ai.AttributeTypeId > MetaExtractor.FixedArrayTypeId) //is IList<> or Array
                     {
                         if (loadRealType)
                         {
@@ -271,26 +262,24 @@ namespace sqoDB.Core
                             if (ai.AttributeTypeId - MetaExtractor.FixedArrayTypeId == MetaExtractor.complexID
                                 || ai.AttributeTypeId - MetaExtractor.FixedArrayTypeId == MetaExtractor.jaggedArrayID)
                             {
-
                             }
                             else
                             {
-                                Type elementType = Cache.Cache.GetTypebyID(ai.AttributeTypeId);
+                                var elementType = Cache.Cache.GetTypebyID(ai.AttributeTypeId);
 #if CF
                                 ai.AttributeType = Array.CreateInstance(elementType,0).GetType();
 #else
                                 ai.AttributeType = elementType.MakeArrayType();
 #endif
                             }
-
                         }
                     }
                     else
                     {
                         ai.AttributeType = Cache.Cache.GetTypebyID(ai.AttributeTypeId);
                     }
-                    tInfo.Fields.Add(ai);
 
+                    tInfo.Fields.Add(ai);
                 }
 
 
@@ -300,43 +289,45 @@ namespace sqoDB.Core
 
             catch (Exception ex)
             {
-                SiaqodbConfigurator.LogMessage("File:" + this.filePath + " is not a valid Siaqodb database file,skipped; error:"+ex.ToString(), VerboseLevel.Info);
+                SiaqodbConfigurator.LogMessage(
+                    "File:" + filePath + " is not a valid Siaqodb database file,skipped; error:" + ex,
+                    VerboseLevel.Info);
             }
+
             return null;
         }
+
         public SqoTypeInfo DeserializeSqoTypeInfo(bool loadRealType)
         {
-
-            byte[] headerSizeB = new byte[4];
+            var headerSizeB = new byte[4];
             file.Read(0, headerSizeB);
-            int headerSize = ByteConverter.ByteArrayToInt(headerSizeB);
-            byte[] readFullSqoTypeInfo = new byte[headerSize];
+            var headerSize = ByteConverter.ByteArrayToInt(headerSizeB);
+            var readFullSqoTypeInfo = new byte[headerSize];
             file.Read(0, readFullSqoTypeInfo);
             return DeserializeSqoTypeInfoFromBuffer(readFullSqoTypeInfo, loadRealType);
-
-
         }
-        #if ASYNC
+#if ASYNC
 
         public async Task<SqoTypeInfo> DeserializeSqoTypeInfoAsync(bool loadRealType)
         {
-            byte[] headerSizeB = new byte[4];
+            var headerSizeB = new byte[4];
             await file.ReadAsync(0, headerSizeB).ConfigureAwait(false);
-            int headerSize = ByteConverter.ByteArrayToInt(headerSizeB);
-            byte[] readFullSqoTypeInfo = new byte[headerSize];
+            var headerSize = ByteConverter.ByteArrayToInt(headerSizeB);
+            var readFullSqoTypeInfo = new byte[headerSize];
             await file.ReadAsync(0, readFullSqoTypeInfo).ConfigureAwait(false);
             return DeserializeSqoTypeInfoFromBuffer(readFullSqoTypeInfo, loadRealType);
         }
 #endif
         public void Open(bool useElevatedTrust)
         {
-
             file = FileFactory.Create(filePath, false, useElevatedTrust);
         }
+
         public void MakeEmpty()
         {
             file.Length = 0;
         }
+
         public void SetLength(long newLength)
         {
             file.Length = newLength;
@@ -347,18 +338,13 @@ namespace sqoDB.Core
             file.Flush();
             file.Close();
         }
-        #if ASYNC
+#if ASYNC
         public async Task CloseAsync()
         {
             await file.FlushAsync().ConfigureAwait(false);
             file.Close();
         }
-        #endif
-        
-        public bool IsClosed
-        {
-            get { return file.IsClosed; }
-        }
+#endif
         public void Flush()
         {
             lock (file)
@@ -369,75 +355,70 @@ namespace sqoDB.Core
 #if ASYNC
         public async Task FlushAsync()
         {
-
             await file.FlushAsync().ConfigureAwait(false);
-
         }
 #endif
         private byte[] GetBuffer(byte[] readFullSqoTypeInfo, int position, int size)
         {
-            byte[] b = new byte[size];
+            var b = new byte[size];
             Array.Copy(readFullSqoTypeInfo, position, b, 0, size);
             return b;
         }
+
         public static byte[] Combine(params byte[][] arrays)
         {
-            int totalLegth = 0;
-            foreach (byte[] data in arrays)
-            {
-                totalLegth += data.Length;
-            }
-            byte[] ret = new byte[totalLegth];
-            int offset = 0;
-            foreach (byte[] data in arrays)
+            var totalLegth = 0;
+            foreach (var data in arrays) totalLegth += data.Length;
+            var ret = new byte[totalLegth];
+            var offset = 0;
+            foreach (var data in arrays)
             {
                 Array.Copy(data, 0, ret, offset, data.Length);
                 offset += data.Length;
             }
+
             return ret;
         }
-       
+
         private FieldSqoInfo FindField(List<FieldSqoInfo> list, string fieldName)
         {
-            foreach (FieldSqoInfo fi in list)
-            {
+            foreach (var fi in list)
                 if (string.Compare(fi.Name, fieldName) == 0)
-                {
                     return fi;
-                }
-            }
             return null;
         }
-
-        
     }
+
     internal class ComplexObjectEventArgs : EventArgs
     {
+        public ComplexObjectEventArgs(object obj, bool returnOnlyOid)
+        {
+            ComplexObject = obj;
+            ReturnOnlyOid_TID = returnOnlyOid;
+        }
+
+        public ComplexObjectEventArgs(int OID, int TID)
+        {
+            this.TID = TID;
+            SavedOID = OID;
+        }
+
+        public ComplexObjectEventArgs(bool justSetOID, ObjectInfo objInfo)
+        {
+            JustSetOID = justSetOID;
+            ObjInfo = objInfo;
+        }
+
         public object ComplexObject { get; set; }
         public Type ParentType { get; set; }
         public string FieldName { get; set; }
-       
-        public ComplexObjectEventArgs(object obj,bool returnOnlyOid)
-        {
-            this.ComplexObject = obj;
-            this.ReturnOnlyOid_TID = returnOnlyOid;
-        }
-        public ComplexObjectEventArgs(int OID,int TID)
-        {
-            this.TID = TID;
-            this.SavedOID = OID;
-        }
-        public ComplexObjectEventArgs(bool justSetOID, ObjectInfo objInfo)
-        {
-            this.JustSetOID = justSetOID;
-            this.ObjInfo = objInfo;
-        }
         public ObjectInfo ObjInfo { get; set; }
         public int SavedOID { get; set; }
         public int TID { get; set; }
         public bool ReturnOnlyOid_TID { get; set; }
         public bool JustSetOID { get; set; }
     }
+
     internal class DocumentEventArgs : EventArgs
     {
         public object ParentObject { get; set; }

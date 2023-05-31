@@ -1,34 +1,34 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using sqoDB.MetaObjects;
-using System.Collections;
+﻿using System.Collections;
+using System.Threading.Tasks;
+using sqoDB.Exceptions;
 using sqoDB.Meta;
+using sqoDB.MetaObjects;
 
 namespace sqoDB.Core
 {
-    class DictionaryByteTransformer:IByteTransformer
+    internal class DictionaryByteTransformer : IByteTransformer
     {
-        private ObjectSerializer serializer;
-        private RawdataSerializer rawSerializer;
-        private Meta.SqoTypeInfo ti;
-        private Meta.FieldSqoInfo fi;
-        int parentOID;
-        public DictionaryByteTransformer(ObjectSerializer serializer, RawdataSerializer rawSerializer, Meta.SqoTypeInfo ti, Meta.FieldSqoInfo fi,int parentOID)
+        private readonly FieldSqoInfo fi;
+        private readonly int parentOID;
+        private readonly RawdataSerializer rawSerializer;
+        private readonly ObjectSerializer serializer;
+        private readonly SqoTypeInfo ti;
+
+        public DictionaryByteTransformer(ObjectSerializer serializer, RawdataSerializer rawSerializer, SqoTypeInfo ti,
+            FieldSqoInfo fi, int parentOID)
         {
-            
             this.serializer = serializer;
             this.rawSerializer = rawSerializer;
             this.ti = ti;
             this.fi = fi;
             this.parentOID = parentOID;
         }
+
         #region IByteTransformer Members
 
         public byte[] GetBytes(object obj)
         {
-            DictionaryInfo dInfo =null;
+            DictionaryInfo dInfo = null;
 
             if (parentOID > 0)
             {
@@ -38,31 +38,31 @@ namespace sqoDB.Core
             {
                 if (obj != null)
                 {
-                    IDictionary actualDict = (IDictionary)obj;
-                    Type[] keyValueType = actualDict.GetType().GetGenericArguments();
+                    var actualDict = (IDictionary)obj;
+                    var keyValueType = actualDict.GetType().GetGenericArguments();
                     if (keyValueType.Length != 2)
-                    {
-                        throw new sqoDB.Exceptions.NotSupportedTypeException("Type:" + actualDict.GetType().ToString() + " is not supported");
-                    }
-                    int keyTypeId = MetaExtractor.GetAttributeType(keyValueType[0]);
-                    int valueTypeId = MetaExtractor.GetAttributeType(keyValueType[1]);
+                        throw new NotSupportedTypeException("Type:" + actualDict.GetType() + " is not supported");
+                    var keyTypeId = MetaExtractor.GetAttributeType(keyValueType[0]);
+                    var valueTypeId = MetaExtractor.GetAttributeType(keyValueType[1]);
                     dInfo = new DictionaryInfo();
                     dInfo.KeyTypeId = keyTypeId;
                     dInfo.ValueTypeId = valueTypeId;
                 }
             }
+
             return rawSerializer.SerializeDictionary(obj, fi.Header.Length, ti.Header.version, dInfo, serializer);
         }
 
         public object GetObject(byte[] bytes)
         {
-            return rawSerializer.DeserializeDictionary(fi.AttributeType, bytes, ti.Header.version,serializer,ti.Type,fi.Name);
+            return rawSerializer.DeserializeDictionary(fi.AttributeType, bytes, ti.Header.version, serializer, ti.Type,
+                fi.Name);
         }
 
         #endregion
 
 #if ASYNC
-        public async System.Threading.Tasks.Task<byte[]> GetBytesAsync(object obj)
+        public async Task<byte[]> GetBytesAsync(object obj)
         {
             DictionaryInfo dInfo = null;
 
@@ -74,25 +74,28 @@ namespace sqoDB.Core
             {
                 if (obj != null)
                 {
-                    IDictionary actualDict = (IDictionary)obj;
-                    Type[] keyValueType = actualDict.GetType().GetGenericArguments();
+                    var actualDict = (IDictionary)obj;
+                    var keyValueType = actualDict.GetType().GetGenericArguments();
                     if (keyValueType.Length != 2)
-                    {
-                        throw new sqoDB.Exceptions.NotSupportedTypeException("Type:" + actualDict.GetType().ToString() + " is not supported");
-                    }
-                    int keyTypeId = MetaExtractor.GetAttributeType(keyValueType[0]);
-                    int valueTypeId = MetaExtractor.GetAttributeType(keyValueType[1]);
+                        throw new NotSupportedTypeException("Type:" + actualDict.GetType() + " is not supported");
+                    var keyTypeId = MetaExtractor.GetAttributeType(keyValueType[0]);
+                    var valueTypeId = MetaExtractor.GetAttributeType(keyValueType[1]);
                     dInfo = new DictionaryInfo();
                     dInfo.KeyTypeId = keyTypeId;
                     dInfo.ValueTypeId = valueTypeId;
                 }
             }
-            return await rawSerializer.SerializeDictionaryAsync(obj, fi.Header.Length, ti.Header.version, dInfo, serializer).ConfigureAwait(false);
+
+            return await rawSerializer
+                .SerializeDictionaryAsync(obj, fi.Header.Length, ti.Header.version, dInfo, serializer)
+                .ConfigureAwait(false);
         }
 
-        public async System.Threading.Tasks.Task<object> GetObjectAsync(byte[] bytes)
+        public async Task<object> GetObjectAsync(byte[] bytes)
         {
-            return await rawSerializer.DeserializeDictionaryAsync(fi.AttributeType, bytes, ti.Header.version, serializer, ti.Type, fi.Name).ConfigureAwait(false);
+            return await rawSerializer
+                .DeserializeDictionaryAsync(fi.AttributeType, bytes, ti.Header.version, serializer, ti.Type, fi.Name)
+                .ConfigureAwait(false);
         }
 #endif
     }

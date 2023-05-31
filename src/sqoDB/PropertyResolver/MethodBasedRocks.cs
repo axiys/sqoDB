@@ -33,59 +33,34 @@ using System.Reflection.Emit;
 
 namespace Mono.Reflection
 {
-
-    sealed class Instruction
+    internal sealed class Instruction
     {
-
-        int offset;
-        OpCode opcode;
-        object operand;
-
-        Instruction previous;
-        Instruction next;
-
-        public int Offset
-        {
-            get { return offset; }
-        }
-
-        public OpCode OpCode
-        {
-            get { return opcode; }
-        }
-
-        public object Operand
-        {
-            get { return operand; }
-            internal set { operand = value; }
-        }
-
-        public Instruction Previous
-        {
-            get { return previous; }
-            internal set { previous = value; }
-        }
-
-        public Instruction Next
-        {
-            get { return next; }
-            internal set { next = value; }
-        }
+        private OpCode opcode;
 
         internal Instruction(int offset, OpCode opcode)
         {
-            this.offset = offset;
+            Offset = offset;
             this.opcode = opcode;
         }
 
+        public int Offset { get; }
+
+        public OpCode OpCode => opcode;
+
+        public object Operand { get; internal set; }
+
+        public Instruction Previous { get; internal set; }
+
+        public Instruction Next { get; internal set; }
+
         public int GetSize()
         {
-            int size = opcode.Size;
+            var size = opcode.Size;
 
             switch (opcode.OperandType)
             {
                 case OperandType.InlineSwitch:
-                    size += (1 + ((int[])operand).Length) * 4;
+                    size += (1 + ((int[])Operand).Length) * 4;
                     break;
                 case OperandType.InlineI8:
                 case OperandType.InlineR:
@@ -120,11 +95,20 @@ namespace Mono.Reflection
         }
     }
 
-    class MethodBodyReader
+    internal class MethodBodyReader
     {
+        private static readonly OpCode[] one_byte_opcodes;
+        private static readonly OpCode[] two_bytes_opcodes;
+        private readonly MethodBody body;
+        private readonly ByteBuffer il;
+        private readonly List<Instruction> instructions = new List<Instruction>();
+        private readonly IList<LocalVariableInfo> locals;
 
-        static OpCode[] one_byte_opcodes;
-        static OpCode[] two_bytes_opcodes;
+        private readonly MethodBase method;
+        private readonly Type[] method_arguments;
+        private readonly Module module;
+        private readonly ParameterInfo[] parameters;
+        private readonly Type[] type_arguments;
 
         static MethodBodyReader()
         {
@@ -133,7 +117,7 @@ namespace Mono.Reflection
 
             var fields = GetOpCodeFields();
 
-            for (int i = 0; i < fields.Length; i++)
+            for (var i = 0; i < fields.Length; i++)
             {
                 var opcode = (OpCode)fields[i].GetValue(null);
                 if (opcode.OpCodeType == OpCodeType.Nternal)
@@ -146,128 +130,12 @@ namespace Mono.Reflection
             }
         }
 
-        static FieldInfo[] GetOpCodeFields()
-        {
-            return typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
-        }
-
-        class ByteBuffer
-        {
-
-            internal byte[] buffer;
-            internal int position;
-
-            public ByteBuffer(byte[] buffer)
-            {
-                this.buffer = buffer;
-            }
-
-            public byte ReadByte()
-            {
-                CheckCanRead(1);
-                return buffer[position++];
-            }
-
-            public byte[] ReadBytes(int length)
-            {
-                CheckCanRead(length);
-                var value = new byte[length];
-                Buffer.BlockCopy(buffer, position, value, 0, length);
-                position += length;
-                return value;
-            }
-
-            public short ReadInt16()
-            {
-                CheckCanRead(2);
-                short value = (short)(buffer[position]
-                    | (buffer[position + 1] << 8));
-                position += 2;
-                return value;
-            }
-
-            public int ReadInt32()
-            {
-                CheckCanRead(4);
-                int value = buffer[position]
-                    | (buffer[position + 1] << 8)
-                    | (buffer[position + 2] << 16)
-                    | (buffer[position + 3] << 24);
-                position += 4;
-                return value;
-            }
-
-            public long ReadInt64()
-            {
-                CheckCanRead(8);
-                uint low = (uint)(buffer[position]
-                    | (buffer[position + 1] << 8)
-                    | (buffer[position + 2] << 16)
-                    | (buffer[position + 3] << 24));
-
-                uint high = (uint)(buffer[position + 4]
-                    | (buffer[position + 5] << 8)
-                    | (buffer[position + 6] << 16)
-                    | (buffer[position + 7] << 24));
-
-                long value = (((long)high) << 32) | low;
-                position += 8;
-                return value;
-            }
-
-            public float ReadSingle()
-            {
-                if (!BitConverter.IsLittleEndian)
-                {
-                    var bytes = ReadBytes(4);
-                    Array.Reverse(bytes);
-                    return BitConverter.ToSingle(bytes, 0);
-                }
-
-                CheckCanRead(4);
-                float value = BitConverter.ToSingle(buffer, position);
-                position += 4;
-                return value;
-            }
-
-            public double ReadDouble()
-            {
-                if (!BitConverter.IsLittleEndian)
-                {
-                    var bytes = ReadBytes(8);
-                    Array.Reverse(bytes);
-                    return BitConverter.ToDouble(bytes, 0);
-                }
-
-                CheckCanRead(8);
-                double value = BitConverter.ToDouble(buffer, position);
-                position += 8;
-                return value;
-            }
-
-            void CheckCanRead(int count)
-            {
-                if (position + count > buffer.Length)
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
-        MethodBase method;
-        MethodBody body;
-        Module module;
-        Type[] type_arguments;
-        Type[] method_arguments;
-        ByteBuffer il;
-        ParameterInfo[] parameters;
-        IList<LocalVariableInfo> locals;
-        List<Instruction> instructions = new List<Instruction>();
-
-        MethodBodyReader(MethodBase method)
+        private MethodBodyReader(MethodBase method)
         {
             this.method = method;
-            
-            this.body = method.GetMethodBody();
-            if (this.body == null)
+
+            body = method.GetMethodBody();
+            if (body == null)
                 throw new ArgumentException();
 
             var bytes = body.GetILAsByteArray();
@@ -280,13 +148,18 @@ namespace Mono.Reflection
             if (method.DeclaringType != null)
                 type_arguments = method.DeclaringType.GetGenericArguments();
 
-            this.parameters = method.GetParameters();
-            this.locals = body.LocalVariables;
-            this.module = method.Module;
-            this.il = new ByteBuffer(bytes);
+            parameters = method.GetParameters();
+            locals = body.LocalVariables;
+            module = method.Module;
+            il = new ByteBuffer(bytes);
         }
 
-        void ReadInstructions()
+        private static FieldInfo[] GetOpCodeFields()
+        {
+            return typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
+        }
+
+        private void ReadInstructions()
         {
             Instruction previous = null;
 
@@ -307,19 +180,19 @@ namespace Mono.Reflection
             }
         }
 
-        void ReadOperand(Instruction instruction)
+        private void ReadOperand(Instruction instruction)
         {
             switch (instruction.OpCode.OperandType)
             {
                 case OperandType.InlineNone:
                     break;
                 case OperandType.InlineSwitch:
-                    int length = il.ReadInt32();
-                    int[] branches = new int[length];
-                    int[] offsets = new int[length];
-                    for (int i = 0; i < length; i++)
+                    var length = il.ReadInt32();
+                    var branches = new int[length];
+                    var offsets = new int[length];
+                    for (var i = 0; i < length; i++)
                         offsets[i] = il.ReadInt32();
-                    for (int i = 0; i < length; i++)
+                    for (var i = 0; i < length; i++)
                         branches[i] = il.position + offsets[i];
 
                     instruction.Operand = branches;
@@ -377,25 +250,24 @@ namespace Mono.Reflection
             }
         }
 
-        object GetVariable(Instruction instruction, int index)
+        private object GetVariable(Instruction instruction, int index)
         {
             if (TargetsLocalVariable(instruction.OpCode))
                 return GetLocalVariable(index);
-            else
-                return GetParameter(index);
+            return GetParameter(index);
         }
 
-        static bool TargetsLocalVariable(OpCode opcode)
+        private static bool TargetsLocalVariable(OpCode opcode)
         {
             return opcode.Name.Contains("loc");
         }
 
-        LocalVariableInfo GetLocalVariable(int index)
+        private LocalVariableInfo GetLocalVariable(int index)
         {
             return locals[index];
         }
 
-        ParameterInfo GetParameter(int index)
+        private ParameterInfo GetParameter(int index)
         {
             if (!method.IsStatic)
                 index--;
@@ -403,9 +275,9 @@ namespace Mono.Reflection
             return parameters[index];
         }
 
-        OpCode ReadOpCode()
+        private OpCode ReadOpCode()
         {
-            byte op = il.ReadByte();
+            var op = il.ReadByte();
             return op != 0xfe
                 ? one_byte_opcodes[op]
                 : two_bytes_opcodes[il.ReadByte()];
@@ -417,11 +289,110 @@ namespace Mono.Reflection
             reader.ReadInstructions();
             return reader.instructions;
         }
+
+        private class ByteBuffer
+        {
+            internal readonly byte[] buffer;
+            internal int position;
+
+            public ByteBuffer(byte[] buffer)
+            {
+                this.buffer = buffer;
+            }
+
+            public byte ReadByte()
+            {
+                CheckCanRead(1);
+                return buffer[position++];
+            }
+
+            public byte[] ReadBytes(int length)
+            {
+                CheckCanRead(length);
+                var value = new byte[length];
+                Buffer.BlockCopy(buffer, position, value, 0, length);
+                position += length;
+                return value;
+            }
+
+            public short ReadInt16()
+            {
+                CheckCanRead(2);
+                var value = (short)(buffer[position]
+                                    | (buffer[position + 1] << 8));
+                position += 2;
+                return value;
+            }
+
+            public int ReadInt32()
+            {
+                CheckCanRead(4);
+                var value = buffer[position]
+                            | (buffer[position + 1] << 8)
+                            | (buffer[position + 2] << 16)
+                            | (buffer[position + 3] << 24);
+                position += 4;
+                return value;
+            }
+
+            public long ReadInt64()
+            {
+                CheckCanRead(8);
+                var low = (uint)(buffer[position]
+                                 | (buffer[position + 1] << 8)
+                                 | (buffer[position + 2] << 16)
+                                 | (buffer[position + 3] << 24));
+
+                var high = (uint)(buffer[position + 4]
+                                  | (buffer[position + 5] << 8)
+                                  | (buffer[position + 6] << 16)
+                                  | (buffer[position + 7] << 24));
+
+                var value = ((long)high << 32) | low;
+                position += 8;
+                return value;
+            }
+
+            public float ReadSingle()
+            {
+                if (!BitConverter.IsLittleEndian)
+                {
+                    var bytes = ReadBytes(4);
+                    Array.Reverse(bytes);
+                    return BitConverter.ToSingle(bytes, 0);
+                }
+
+                CheckCanRead(4);
+                var value = BitConverter.ToSingle(buffer, position);
+                position += 4;
+                return value;
+            }
+
+            public double ReadDouble()
+            {
+                if (!BitConverter.IsLittleEndian)
+                {
+                    var bytes = ReadBytes(8);
+                    Array.Reverse(bytes);
+                    return BitConverter.ToDouble(bytes, 0);
+                }
+
+                CheckCanRead(8);
+                var value = BitConverter.ToDouble(buffer, position);
+                position += 8;
+                return value;
+            }
+
+            private void CheckCanRead(int count)
+            {
+                if (position + count > buffer.Length)
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
     }
 
-    static class MethodBaseRocks
+    internal static class MethodBaseRocks
     {
-
         public static IList<Instruction> GetInstructions(this MethodBase self)
         {
             return MethodBodyReader.GetInstructions(self).AsReadOnly();

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace sqoDB.Utilities
+﻿namespace sqoDB.Utilities
 {
 #if UNITY3D
     class EqualityComparer<T>:IEqualityComparer<T>

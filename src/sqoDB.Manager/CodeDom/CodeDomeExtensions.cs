@@ -1,5 +1,4 @@
-﻿
-using System.CodeDom;
+﻿using System.CodeDom;
 
 namespace sqoDB.Manager
 {
@@ -12,7 +11,8 @@ namespace sqoDB.Manager
             return codeNamespace;
         }
 
-        public static CodeTypeDeclaration AddMethod(this CodeTypeDeclaration classCode, CodeSnippetTypeMember methodBody)
+        public static CodeTypeDeclaration AddMethod(this CodeTypeDeclaration classCode,
+            CodeSnippetTypeMember methodBody)
         {
             classCode.Members.Add(methodBody);
 

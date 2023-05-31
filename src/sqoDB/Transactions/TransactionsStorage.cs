@@ -1,33 +1,29 @@
-﻿using System;
-using sqoDB.Core;
-using sqoDB.Meta;
+﻿using sqoDB.Core;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
+
 namespace sqoDB.Transactions
 {
     internal class TransactionsStorage
     {
-        ISqoFile file;
-        public TransactionsStorage(string filePath,bool useElevatedTrust)
+        private readonly ISqoFile file;
+
+        public TransactionsStorage(string filePath, bool useElevatedTrust)
         {
             file = FileFactory.Create(filePath, false, useElevatedTrust);
         }
-        
+
         public int SaveTransactionalObject(byte[] objBytes, long pos)
         {
-
             file.Write(pos, objBytes);
             return objBytes.Length;
-            
         }
 #if ASYNC
         public async Task<int> SaveTransactionalObjectAsync(byte[] objBytes, long pos)
         {
-
             await file.WriteAsync(pos, objBytes).ConfigureAwait(false);
             return objBytes.Length;
-
         }
 #endif
         public void Write(long pos, byte[] buffer)
@@ -72,6 +68,5 @@ namespace sqoDB.Transactions
             file.Close();
         }
 #endif
-        
     }
 }

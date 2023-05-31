@@ -1,21 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB.Queries
 {
-    class Or:ICriteria
+    internal class Or : ICriteria
     {
-        public Or()
-        {
+        private ICriteria criteria1;
+        private ICriteria criteria2;
 
-        }
-        ICriteria criteria1;
-        ICriteria criteria2;
         public void Add(ICriteria criteria1, ICriteria criteria2)
         {
             this.criteria1 = criteria1;
@@ -27,11 +21,12 @@ namespace sqoDB.Queries
 
         public List<int> GetOIDs()
         {
-            List<int> list = new List<int>();
-            List<int> unu = criteria1.GetOIDs();
-            List<int> doi = criteria2.GetOIDs(); 
+            var list = new List<int>();
+            var unu = criteria1.GetOIDs();
+            var doi = criteria2.GetOIDs();
 
             #region old version
+
             /*foreach (int oid in unu)
             {
 
@@ -46,96 +41,65 @@ namespace sqoDB.Queries
                 }
 
             }*/
+
             #endregion
 
             if (unu.Count < doi.Count)
             {
-                
-
-                foreach (int oid in doi)
-                {
-                    list.Add(oid);
-                }
+                foreach (var oid in doi) list.Add(oid);
                 doi.Sort();
-                foreach (int oid in unu)
+                foreach (var oid in unu)
                 {
-                    int index = doi.BinarySearch(oid);
-                    if (index < 0)
-                    {
-                        list.Add(oid);
-                    }
+                    var index = doi.BinarySearch(oid);
+                    if (index < 0) list.Add(oid);
                 }
-                return list;
-            }
-            else
-            {
-                foreach (int oid in unu)
-                {
-                    list.Add(oid);
-                }
-                unu.Sort();
-                foreach (int oid in doi)
-                {
-                    int index = unu.BinarySearch(oid);
-                    if (index < 0)
-                    {
-                        list.Add(oid);
-                    }
-                }
-                return list;
-            }
-           
 
-           
+                return list;
+            }
+
+            foreach (var oid in unu) list.Add(oid);
+            unu.Sort();
+            foreach (var oid in doi)
+            {
+                var index = unu.BinarySearch(oid);
+                if (index < 0) list.Add(oid);
+            }
+
+            return list;
         }
 
-        
 
 #if ASYNC
         public async Task<List<int>> GetOIDsAsync()
         {
-            List<int> list = new List<int>();
-            List<int> unu = await criteria1.GetOIDsAsync().ConfigureAwait(false);
-            List<int> doi = await criteria2.GetOIDsAsync().ConfigureAwait(false);
+            var list = new List<int>();
+            var unu = await criteria1.GetOIDsAsync().ConfigureAwait(false);
+            var doi = await criteria2.GetOIDsAsync().ConfigureAwait(false);
             if (unu.Count < doi.Count)
             {
-
-
-                foreach (int oid in doi)
-                {
-                    list.Add(oid);
-                }
+                foreach (var oid in doi) list.Add(oid);
                 doi.Sort();
-                foreach (int oid in unu)
+                foreach (var oid in unu)
                 {
-                    int index = doi.BinarySearch(oid);
-                    if (index < 0)
-                    {
-                        list.Add(oid);
-                    }
+                    var index = doi.BinarySearch(oid);
+                    if (index < 0) list.Add(oid);
                 }
-                return list;
-            }
-            else
-            {
-                foreach (int oid in unu)
-                {
-                    list.Add(oid);
-                }
-                unu.Sort();
-                foreach (int oid in doi)
-                {
-                    int index = unu.BinarySearch(oid);
-                    if (index < 0)
-                    {
-                        list.Add(oid);
-                    }
-                }
+
                 return list;
             }
 
+            foreach (var oid in unu) list.Add(oid);
+            unu.Sort();
+            foreach (var oid in doi)
+            {
+                var index = unu.BinarySearch(oid);
+                if (index < 0) list.Add(oid);
+            }
+
+            return list;
         }
 #endif
+
         #endregion
     }
 }

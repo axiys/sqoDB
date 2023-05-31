@@ -1,43 +1,52 @@
-﻿
-using System.CodeDom;
+﻿using System.CodeDom;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using Microsoft.CSharp;
 
 namespace sqoDB.Manager
 {
     public class CodeDom
     {
         private List<CodeCompileUnit> listCompileUnits = new List<CodeCompileUnit>();
-        private List<CodeNamespace> listNamespaces = new List<CodeNamespace>();
-        private System.Collections.Specialized.StringCollection listReferencedAssemblies = 
-            new System.Collections.Specialized.StringCollection() { "System.dll" };
+        private readonly List<CodeNamespace> listNamespaces = new List<CodeNamespace>();
 
-        public CodeDom()
-           
+        private readonly StringCollection listReferencedAssemblies =
+            new StringCollection { "System.dll" };
+
+        public CodeCompileUnit CompileUnit
         {
-        }
+            get
+            {
+                var compileUnit = new CodeCompileUnit();
 
+                foreach (var ns in listNamespaces)
+                    compileUnit.Namespaces.Add(ns);
+
+                return compileUnit;
+            }
+        }
 
 
         public static CodeDomProvider Provider()
         {
-            var providerOptions = new Dictionary<string, string>(); providerOptions.Add("CompilerVersion", "v3.5");
+            var providerOptions = new Dictionary<string, string>();
+            providerOptions.Add("CompilerVersion", "v3.5");
 
-            return new Microsoft.CSharp.CSharpCodeProvider(providerOptions);
-
+            return new CSharpCodeProvider(providerOptions);
         }
 
         public CodeNamespace AddNamespace(string namespaceName)
         {
-            CodeNamespace codeNamespace = new CodeNamespace(namespaceName);
+            var codeNamespace = new CodeNamespace(namespaceName);
             listNamespaces.Add(codeNamespace);
 
             return codeNamespace;
         }
-        
+
         public CodeDom AddReference(string referencedAssembly)
         {
             listReferencedAssemblies.Add(referencedAssembly);
@@ -52,7 +61,8 @@ namespace sqoDB.Manager
 
         public CodeSnippetTypeMember Method(string returnType, string methodName, string paramList, string methodBody)
         {
-            return Method(string.Format("public static {0} {1}({2}) {{ {3} }} ", returnType, methodName, paramList, methodBody));
+            return Method(string.Format("public static {0} {1}({2}) {{ {3} }} ", returnType, methodName, paramList,
+                methodBody));
         }
 
         public CodeSnippetTypeMember Method(string methodName, string paramList, string methodBody)
@@ -70,48 +80,34 @@ namespace sqoDB.Manager
             return new CodeSnippetTypeMember(methodBody);
         }
 
-        public CodeCompileUnit CompileUnit
-        {
-            get
-            {
-                
-                CodeCompileUnit compileUnit = new CodeCompileUnit();
-
-                foreach (var ns in listNamespaces)
-                    compileUnit.Namespaces.Add(ns);
-
-                return compileUnit;
-            }
-        }
-
         public Assembly Compile(OutputErrors renderErrors)
         {
-            return Compile(null,renderErrors);
+            return Compile(null, renderErrors);
         }
 
-        public Assembly Compile(string assemblyPath,OutputErrors renderErrors)
+        public Assembly Compile(string assemblyPath, OutputErrors renderErrors)
         {
-            CompilerParameters options = new CompilerParameters();
+            var options = new CompilerParameters();
             options.IncludeDebugInformation = false;
             options.GenerateExecutable = false;
-            options.GenerateInMemory = (assemblyPath == null);
-            foreach (string refAsm in listReferencedAssemblies)
+            options.GenerateInMemory = assemblyPath == null;
+            foreach (var refAsm in listReferencedAssemblies)
                 options.ReferencedAssemblies.Add(refAsm);
             if (assemblyPath != null)
                 options.OutputAssembly = assemblyPath.Replace('\\', '/');
 
-            CodeDomProvider codeProvider = Provider();
+            var codeProvider = Provider();
 
-            CompilerResults results =
-               codeProvider.CompileAssemblyFromDom(options, CompileUnit);
+            var results =
+                codeProvider.CompileAssemblyFromDom(options, CompileUnit);
             codeProvider.Dispose();
 
-            if (results.Errors.Count ==  0)
+            if (results.Errors.Count == 0)
                 return results.CompiledAssembly;
 
-           
-			renderErrors("Errors:");
-            
+
+            renderErrors("Errors:");
+
             foreach (CompilerError err in results.Errors)
                 renderErrors(err.ToString());
 
@@ -120,10 +116,10 @@ namespace sqoDB.Manager
 
         public string GenerateCode()
         {
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             TextWriter tw = new IndentedTextWriter(new StringWriter(sb));
 
-            CodeDomProvider codeProvider = Provider();
+            var codeProvider = Provider();
             codeProvider.GenerateCodeFromCompileUnit(CompileUnit, tw, new CodeGeneratorOptions());
             codeProvider.Dispose();
 
@@ -132,5 +128,6 @@ namespace sqoDB.Manager
             return sb.ToString();
         }
     }
-	public delegate void OutputErrors(string errorLine);
+
+    public delegate void OutputErrors(string errorLine);
 }

@@ -1,11 +1,9 @@
-﻿using System;
-
-
-namespace sqoDB.Core
+﻿namespace sqoDB.Core
 {
     internal class FileFactory
     {
-        static readonly object _syncRoot = new object();
+        private static readonly object _syncRoot = new object();
+
         public static ISqoFile Create(string filePath, bool readOnly, bool elevatedTrust)
         {
             lock (_syncRoot)
@@ -37,11 +35,10 @@ namespace sqoDB.Core
                     return new SqoWinRTFile(filePath, readOnly);
                 }
 #else
-                return new SqoFile(filePath,readOnly);
-            
+                return new SqoFile(filePath, readOnly);
+
 #endif
             }
         }
-
     }
 }

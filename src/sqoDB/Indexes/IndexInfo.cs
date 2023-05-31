@@ -1,18 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Reflection;
 using sqoDB.Attributes;
 
 namespace sqoDB.Indexes
 {
-    [System.Reflection.Obfuscation(Exclude = true)]
-    class IndexInfo2
+    [Obfuscation(Exclude = true)]
+    internal class IndexInfo2
     {
         public int OID { get; set; }
         public int RootOID { get; set; }
-        [Text]
-        public string IndexName { get; set; }
+        [Text] public string IndexName { get; set; }
 #if SILVERLIGHT
         public object GetValue(System.Reflection.FieldInfo field)
         {

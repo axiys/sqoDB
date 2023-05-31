@@ -1,61 +1,49 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
-using sqoDB.Meta;
 using sqoDB.Exceptions;
-using System.Collections;
+using sqoDB.Meta;
 
 namespace sqoDB.Cache
 {
-	class Cache
-	{
-        private static Dictionary<Type, int> cacheOfTypesByIds = new Dictionary<Type, int>();
-            
+    internal class Cache
+    {
+        private static readonly Dictionary<Type, int> cacheOfTypesByIds = new Dictionary<Type, int>();
 
-         static Cache()
+
+        static Cache()
         {
             AddNativeTypes();
         }
-       
+
         public static void AddTypeBytID(Type type, int ID)
         {
-            cacheOfTypesByIds[type] =ID ;
+            cacheOfTypesByIds[type] = ID;
         }
-       
+
         public static bool ContainsPrimitiveType(Type type)
         {
             return cacheOfTypesByIds.ContainsKey(type);
         }
-       
+
         public static int GetTypeID(Type t)
         {
             return cacheOfTypesByIds[t];
         }
+
         public static Type GetTypebyID(int ID)
         {
             if (ID > MetaExtractor.ArrayTypeIDExtra)
-            {
                 ID -= MetaExtractor.ArrayTypeIDExtra;
-            }
             else if (ID < MetaExtractor.ArrayTypeIDExtra && ID > MetaExtractor.FixedArrayTypeId)
-            {
                 ID -= MetaExtractor.FixedArrayTypeId;
-            }
-            if (ID == MetaExtractor.textID)//workaround to store Text and String same type string
-            {
+            if (ID == MetaExtractor.textID) //workaround to store Text and String same type string
                 return GetTypebyID(MetaExtractor.stringID);
-            }
-            foreach (Type t in cacheOfTypesByIds.Keys)
-            { 
-                if(cacheOfTypesByIds[t]==ID)
-                {
+            foreach (var t in cacheOfTypesByIds.Keys)
+                if (cacheOfTypesByIds[t] == ID)
                     return t;
-                }
-            }
-            throw new SiaqodbException("Unsupported type ID:" + ID.ToString());
-
+            throw new SiaqodbException("Unsupported type ID:" + ID);
         }
-        
+
 
         private static void AddNativeTypes()
         {
@@ -73,7 +61,7 @@ namespace sqoDB.Cache
             // Primitive decimal types
             cacheOfTypesByIds[typeof(float)] = MetaExtractor.floatID;
             cacheOfTypesByIds[typeof(double)] = MetaExtractor.doubleID;
-            cacheOfTypesByIds[typeof(decimal)] =MetaExtractor.decimalID;
+            cacheOfTypesByIds[typeof(decimal)] = MetaExtractor.decimalID;
 
             // Char
             cacheOfTypesByIds[typeof(char)] = MetaExtractor.charID;
@@ -83,23 +71,18 @@ namespace sqoDB.Cache
             cacheOfTypesByIds[typeof(bool)] = MetaExtractor.boolID;
 
 
-
             // Other system value types
             cacheOfTypesByIds[typeof(TimeSpan)] = MetaExtractor.TimeSpanID;
             cacheOfTypesByIds[typeof(DateTime)] = MetaExtractor.DateTimeID;
 #if !CF
             cacheOfTypesByIds[typeof(DateTimeOffset)] = MetaExtractor.DateTimeOffsetID;
-#endif     
+#endif
             cacheOfTypesByIds[typeof(Guid)] = MetaExtractor.GuidID;
             cacheOfTypesByIds[typeof(string)] = MetaExtractor.stringID;
             //text                             =24;
 
             //cacheOfTypesByIds[typeof(Array)] = 30;
-           // cacheOfTypesByIds[typeof(IList)] = 31;
-
+            // cacheOfTypesByIds[typeof(IList)] = 31;
         }
-		
-
-
     }
 }

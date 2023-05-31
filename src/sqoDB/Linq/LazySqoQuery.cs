@@ -1,7 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Linq.Expressions;
 #if ASYNC
 using System.Threading.Tasks;
@@ -12,102 +11,98 @@ namespace sqoDB
 #if KEVAST
     internal
 #else
-        public
+    public
 #endif
-    class LazySqoQuery<T> : ISqoQuery<T>
+        class LazySqoQuery<T> : ISqoQuery<T>
     {
         protected List<int> oids;
-        private Siaqodb siaqodb;
 #if ASYNC
-        ISqoAsyncEnumerator<T> enumerator;
+        private ISqoAsyncEnumerator<T> enumerator;
 #else
             IEnumerator<T> enumerator;
 #endif
-        
-        Expression expression;
+
+        private readonly Expression expression;
+
         public LazySqoQuery(Siaqodb siaqodb, List<int> oids)
         {
             this.oids = oids;
-            this.siaqodb = siaqodb;
-            this.enumerator = new LazyEnumerator<T>(siaqodb, oids);
+            Siaqodb = siaqodb;
+            enumerator = new LazyEnumerator<T>(siaqodb, oids);
         }
+
         public LazySqoQuery(LazyEnumerator<T> enumerator)
         {
-
             this.enumerator = enumerator;
         }
-        public LazySqoQuery(Siaqodb siaqodb,Expression expression)
+
+        public LazySqoQuery(Siaqodb siaqodb, Expression expression)
         {
-            this.siaqodb = siaqodb;
+            Siaqodb = siaqodb;
             this.expression = expression;
         }
-        public Siaqodb Siaqodb { get { return siaqodb; } }
+
+        public Siaqodb Siaqodb { get; }
+
         public List<int> GetOids()
         {
-            return this.oids;
+            return oids;
         }
 #if ASYNC
         public async Task<IList<T>> ToListAsync()
         {
             IObjectList<T> list = new ObjectList<T>();
-            ISqoAsyncEnumerator<T> asyncEnum = await this.GetEnumeratorAsync();
-            while (await asyncEnum.MoveNextAsync())
-            {
-                list.Add(asyncEnum.Current);
-            }
+            var asyncEnum = await GetEnumeratorAsync();
+            while (await asyncEnum.MoveNextAsync()) list.Add(asyncEnum.Current);
             return list;
         }
+
         public async Task<ISqoAsyncEnumerator<T>> GetEnumeratorAsync()
         {
-            if (this.enumerator == null)
+            if (enumerator == null)
             {
                 if (oids == null)
                 {
                     if (expression == null)
-                    {
-                        oids = await siaqodb.LoadAllOIDsAsync<T>();
-
-                    }
+                        oids = await Siaqodb.LoadAllOIDsAsync<T>();
                     else
-                    {
-                        oids = await siaqodb.LoadOidsAsync<T>(this.expression);
-                    }
+                        oids = await Siaqodb.LoadOidsAsync<T>(expression);
                 }
-                this.enumerator = new LazyEnumerator<T>(siaqodb, oids);
+
+                enumerator = new LazyEnumerator<T>(Siaqodb, oids);
             }
-            return this.enumerator;
+
+            return enumerator;
         }
 #endif
+
         #region IEnumerable<T> Members
 
         public IEnumerator<T> GetEnumerator()
         {
-            if (this.enumerator == null)
+            if (enumerator == null)
             {
                 if (oids == null)
                 {
                     if (expression == null)
-                    {
-                        oids = siaqodb.LoadAllOIDs<T>();
-
-                    }
+                        oids = Siaqodb.LoadAllOIDs<T>();
                     else
-                    {
-                        oids = siaqodb.LoadOids<T>(this.expression);
-                    }
+                        oids = Siaqodb.LoadOids<T>(expression);
                 }
-                this.enumerator = new LazyEnumerator<T>(siaqodb, oids);
+
+                enumerator = new LazyEnumerator<T>(Siaqodb, oids);
             }
-            return this.enumerator;
+
+            return enumerator;
         }
 
         #endregion
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return this.enumerator;
+            return enumerator;
         }
 
         #endregion
@@ -124,7 +119,9 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Select(this, selector);
         }
 
-        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner, Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<T, TInner, TResult>> resultSelector)
+        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner,
+            Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector,
+            Expression<Func<T, TInner, TResult>> resultSelector)
         {
             return SqoQueryExtensionsImpl.Join(this, inner, outerKeySelector, innerKeySelector, resultSelector);
         }
@@ -314,7 +311,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Include(this, path);
         }
 
-		#if !UNITY3D || XIOS
+#if !UNITY3D || XIOS
         public ISqoOrderedQuery<T> SqoOrderBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
             return SqoQueryExtensionsImpl.OrderBy(this, keySelector);
@@ -335,6 +332,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.ThenByDescending(this as ISqoOrderedQuery<T>, keySelector);
         }
 #endif
+
         #endregion
     }
 }

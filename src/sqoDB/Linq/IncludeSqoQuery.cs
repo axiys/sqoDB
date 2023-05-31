@@ -1,7 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Linq.Expressions;
 #if ASYNC
 using System.Threading.Tasks;
@@ -9,67 +8,67 @@ using System.Threading.Tasks;
 
 namespace sqoDB
 {
-    #if KEVAST
+#if KEVAST
     internal
 #else
-        public
+    public
 #endif
         class IncludeSqoQuery<T> : ISqoQuery<T>
     {
-        internal List<string> includes=new List<string>();
-        SqoQuery<T> originalQuery;
+        internal List<string> includes = new List<string>();
+        private readonly SqoQuery<T> originalQuery;
 
 #if ASYNC
-            ISqoAsyncEnumerator<T> enumerator;
+        private ISqoAsyncEnumerator<T> enumerator;
 #else
             IEnumerator<T> enumerator;
 #endif
-            public IncludeSqoQuery(SqoQuery<T> query, params string[] properties)
+        public IncludeSqoQuery(SqoQuery<T> query, params string[] properties)
         {
-            this.originalQuery = query;
+            originalQuery = query;
             includes.AddRange(properties);
         }
 #if ASYNC
         public async Task<IList<T>> ToListAsync()
         {
             IObjectList<T> list = new ObjectList<T>();
-            ISqoAsyncEnumerator<T> asyncEnum = await this.GetEnumeratorAsync();
-            while (await asyncEnum.MoveNextAsync())
-            {
-                list.Add(asyncEnum.Current);
-            }
+            var asyncEnum = await GetEnumeratorAsync();
+            while (await asyncEnum.MoveNextAsync()) list.Add(asyncEnum.Current);
             return list;
-
         }
+
         public async Task<ISqoAsyncEnumerator<T>> GetEnumeratorAsync()
         {
-            if (this.enumerator == null)
+            if (enumerator == null)
             {
-                List<int> oids = await originalQuery.GetOidsAsync();
-                this.enumerator = new LazyEnumerator<T>(originalQuery.Siaqodb, oids, includes);
+                var oids = await originalQuery.GetOidsAsync();
+                enumerator = new LazyEnumerator<T>(originalQuery.Siaqodb, oids, includes);
             }
-            return this.enumerator;
+
+            return enumerator;
         }
 #endif
+
         #region IEnumerable<T> Members
 
         public IEnumerator<T> GetEnumerator()
         {
-            if (this.enumerator == null)
+            if (enumerator == null)
             {
-                List<int> oids=originalQuery.GetOids();
-                this.enumerator = new LazyEnumerator<T>(originalQuery.Siaqodb, oids,includes);
+                var oids = originalQuery.GetOids();
+                enumerator = new LazyEnumerator<T>(originalQuery.Siaqodb, oids, includes);
             }
-            return this.enumerator;
+
+            return enumerator;
         }
 
         #endregion
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return this.enumerator;
+            return enumerator;
         }
 
         #endregion
@@ -86,9 +85,11 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Select(this, selector);
         }
 
-        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner, Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<T, TInner, TResult>> resultSelector)
+        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner,
+            Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector,
+            Expression<Func<T, TInner, TResult>> resultSelector)
         {
-            return SqoQueryExtensionsImpl.Join(this, inner,outerKeySelector,innerKeySelector,resultSelector);
+            return SqoQueryExtensionsImpl.Join(this, inner, outerKeySelector, innerKeySelector, resultSelector);
         }
 
         public int SqoCount()
@@ -100,17 +101,17 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.CountAsync(this);
         }
-            #endif
+#endif
         public int SqoCount(Expression<Func<T, bool>> expression)
         {
-            return SqoQueryExtensionsImpl.Count(this,expression);
+            return SqoQueryExtensionsImpl.Count(this, expression);
         }
 #if ASYNC
         public Task<int> SqoCountAsync(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.CountAsync(this, expression);
         }
-            #endif
+#endif
         public T SqoFirstOrDefault()
         {
             return SqoQueryExtensionsImpl.FirstOrDefault(this);
@@ -120,7 +121,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.FirstOrDefaultAsync(this);
         }
-            #endif
+#endif
         public T SqoFirstOrDefault(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.FirstOrDefault(this, expression);
@@ -130,7 +131,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.FirstOrDefaultAsync(this, expression);
         }
-            #endif
+#endif
         public T SqoFirst()
         {
             return SqoQueryExtensionsImpl.First(this);
@@ -140,17 +141,17 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.FirstAsync(this);
         }
-            #endif
+#endif
         public T SqoFirst(Expression<Func<T, bool>> expression)
         {
-            return SqoQueryExtensionsImpl.First(this,expression);
+            return SqoQueryExtensionsImpl.First(this, expression);
         }
 #if ASYNC
         public Task<T> SqoFirstAsync(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.FirstAsync(this, expression);
         }
-            #endif
+#endif
         public bool SqoAny()
         {
             return SqoQueryExtensionsImpl.Any(this);
@@ -160,17 +161,17 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.AnyAsync(this);
         }
-            #endif
+#endif
         public bool SqoAny(Expression<Func<T, bool>> expression)
         {
-            return SqoQueryExtensionsImpl.Any(this,expression);
+            return SqoQueryExtensionsImpl.Any(this, expression);
         }
 #if ASYNC
         public Task<bool> SqoAnyAsync(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.AnyAsync(this, expression);
         }
-            #endif
+#endif
         public T SqoLast()
         {
             return SqoQueryExtensionsImpl.Last(this);
@@ -180,7 +181,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.LastAsync(this);
         }
-            #endif
+#endif
         public T SqoLast(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.Last(this, expression);
@@ -190,7 +191,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.LastAsync(this, expression);
         }
-            #endif
+#endif
         public T SqoLastOrDefault()
         {
             return SqoQueryExtensionsImpl.LastOrDefault(this);
@@ -200,7 +201,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.LastOrDefaultAsync(this);
         }
-            #endif
+#endif
         public T SqoLastOrDefault(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.LastOrDefault(this, expression);
@@ -210,7 +211,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.LastOrDefaultAsync(this, expression);
         }
-            #endif
+#endif
         public T SqoSingle()
         {
             return SqoQueryExtensionsImpl.Single(this);
@@ -220,7 +221,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.SingleAsync(this);
         }
-            #endif
+#endif
         public T SqoSingle(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.Single(this, expression);
@@ -230,7 +231,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.SingleAsync(this, expression);
         }
-            #endif
+#endif
         public T SqoSingleOrDefault()
         {
             return SqoQueryExtensionsImpl.SingleOrDefault(this);
@@ -240,7 +241,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.SingleOrDefaultAsync(this);
         }
-            #endif
+#endif
         public T SqoSingleOrDefault(Expression<Func<T, bool>> expression)
         {
             return SqoQueryExtensionsImpl.SingleOrDefault(this, expression);
@@ -250,7 +251,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.SingleOrDefaultAsync(this, expression);
         }
-            #endif
+#endif
         public ISqoQuery<T> SqoTake(int count)
         {
             return SqoQueryExtensionsImpl.Take(this, count);
@@ -260,7 +261,7 @@ namespace sqoDB
         {
             return SqoQueryExtensionsImpl.TakeAsync(this, count);
         }
-            #endif
+#endif
         public ISqoQuery<T> SqoSkip(int count)
         {
             return SqoQueryExtensionsImpl.Skip(this, count);
@@ -273,13 +274,13 @@ namespace sqoDB
 #endif
         public ISqoQuery<T> SqoInclude(string path)
         {
-            return SqoQueryExtensionsImpl.Include(this,path);
+            return SqoQueryExtensionsImpl.Include(this, path);
         }
 
-		#if !UNITY3D  || XIOS
+#if !UNITY3D || XIOS
         public ISqoOrderedQuery<T> SqoOrderBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
-            return SqoQueryExtensionsImpl.OrderBy(this,keySelector);
+            return SqoQueryExtensionsImpl.OrderBy(this, keySelector);
         }
 
         public ISqoOrderedQuery<T> SqoOrderByDescending<TKey>(Expression<Func<T, TKey>> keySelector)
@@ -297,6 +298,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.ThenByDescending(this as ISqoOrderedQuery<T>, keySelector);
         }
 #endif
+
         #endregion
     }
 }

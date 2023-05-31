@@ -1,43 +1,35 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
-using sqoDB;
-using System.Collections;
+using sqoDB.Utilities;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB.Indexes
 {
-    internal class BTree<T>:IBTree<T>,IBTree where T:IComparable
+    internal class BTree<T> : IBTree<T>, IBTree where T : IComparable
     {
-        #if UNITY3D
+#if UNITY3D
         public List<BTreeNode<T>> dirtyNodes = new List<BTreeNode<T>>();
 #else
-        public Dictionary<BTreeNode<T>, int> dirtyNodes = new Dictionary<BTreeNode<T>, int>(); 
-#endif  
+        public Dictionary<BTreeNode<T>, int> dirtyNodes = new Dictionary<BTreeNode<T>, int>();
+#endif
         public BTreeNode<T> Root;
-        Siaqodb siaqodb;
-        IndexInfo2 indexInfo;
-        bool allowPersistence=true;
+        private readonly Siaqodb siaqodb;
+        private IndexInfo2 indexInfo;
+        private bool allowPersistence = true;
 
         public BTree(Siaqodb s)
         {
-            this.siaqodb = s;
-            Root = new BTreeNode<T>(this.siaqodb,this);
-            
+            siaqodb = s;
+            Root = new BTreeNode<T>(siaqodb, this);
         }
-        
+
         // Add a new item to the tree.
         public void AddItem(T new_key, int[] new_value)
         {
-            if (this.Root.OID == 0)
-            {
-                this.Root.Persist();
-               
-
-            }
-            T up_key = default(T);
+            if (Root.OID == 0) Root.Persist();
+            var up_key = default(T);
             int[] up_value = null;
             BTreeNode<T> up_node = null;
             Root.AddItem(new_key, new_value, ref up_key, ref up_value, ref up_node);
@@ -45,8 +37,8 @@ namespace sqoDB.Indexes
             // See if there was a root bucket split.
             if (up_node != null)
             {
-                BTreeNode<T> new_root = new BTreeNode<T>(siaqodb,this);
-                
+                var new_root = new BTreeNode<T>(siaqodb, this);
+
                 new_root.Keys[0] = up_key;
                 new_root.Values[0] = up_value;
                 new_root.Children[0] = Root;
@@ -55,26 +47,19 @@ namespace sqoDB.Indexes
 
                 Root = new_root;
                 new_root.Persist();
-                
-                
             }
         }
 #if ASYNC
         public async Task AddItemAsync(T new_key, int[] new_value)
         {
-            if (this.Root.OID == 0)
-            {
-                await this.Root.PersistAsync().ConfigureAwait(false);
-
-
-            }
-            AddedItem<T> addedItem = new AddedItem<T>();
+            if (Root.OID == 0) await Root.PersistAsync().ConfigureAwait(false);
+            var addedItem = new AddedItem<T>();
             await Root.AddItemAsync(new_key, new_value, addedItem).ConfigureAwait(false);
 
             // See if there was a root bucket split.
             if (addedItem.up_node != null)
             {
-                BTreeNode<T> new_root = new BTreeNode<T>(siaqodb, this);
+                var new_root = new BTreeNode<T>(siaqodb, this);
 
                 new_root.Keys[0] = addedItem.up_key;
                 new_root.Values[0] = addedItem.up_value;
@@ -84,8 +69,6 @@ namespace sqoDB.Indexes
 
                 Root = new_root;
                 await new_root.PersistAsync().ConfigureAwait(false);
-
-
             }
         }
 
@@ -103,62 +86,64 @@ namespace sqoDB.Indexes
 #endif
         public List<int> FindItemsLessThan(T target_key)
         {
-            bool stop = false;
-            return Root.FindItemsLessThan(target_key,false,ref stop);
+            var stop = false;
+            return Root.FindItemsLessThan(target_key, false, ref stop);
         }
 #if ASYNC
         public async Task<List<int>> FindItemsLessThanAsync(T target_key)
         {
-            StopIndicator stop = new StopIndicator();
+            var stop = new StopIndicator();
             return await Root.FindItemsLessThanAsync(target_key, false, stop).ConfigureAwait(false);
         }
 #endif
         public List<int> FindItemsLessThanOrEqual(T target_key)
         {
-            bool stop = false;
-            return Root.FindItemsLessThan(target_key, true,ref stop);
+            var stop = false;
+            return Root.FindItemsLessThan(target_key, true, ref stop);
         }
 #if ASYNC
         public async Task<List<int>> FindItemsLessThanOrEqualAsync(T target_key)
         {
-            StopIndicator stop = new StopIndicator();
+            var stop = new StopIndicator();
             return await Root.FindItemsLessThanAsync(target_key, true, stop).ConfigureAwait(false);
         }
 #endif
         public List<int> FindItemsBiggerThan(T target_key)
         {
-            bool stop = false;
+            var stop = false;
             return Root.FindItemsBiggerThan(target_key, false, ref stop);
         }
 #if ASYNC
         public async Task<List<int>> FindItemsBiggerThanAsync(T target_key)
         {
-            StopIndicator stop = new StopIndicator();
+            var stop = new StopIndicator();
             return await Root.FindItemsBiggerThanAsync(target_key, false, stop).ConfigureAwait(false);
         }
 #endif
         public List<int> FindItemsBiggerThanOrEqual(T target_key)
         {
-            bool stop = false;
+            var stop = false;
             return Root.FindItemsBiggerThan(target_key, true, ref stop);
         }
 #if ASYNC
         public async Task<List<int>> FindItemsBiggerThanOrEqualAsync(T target_key)
         {
-            StopIndicator stop = new StopIndicator();
+            var stop = new StopIndicator();
             return await Root.FindItemsBiggerThanAsync(target_key, true, stop).ConfigureAwait(false);
         }
 #endif
-        public List<int> FindItemsStartsWith(T target_key,bool defaultComparer,StringComparison stringComparison)
+        public List<int> FindItemsStartsWith(T target_key, bool defaultComparer, StringComparison stringComparison)
         {
-            bool stop = false;
+            var stop = false;
             return Root.FindItemsStartsWith(target_key, defaultComparer, stringComparison, ref stop);
         }
 #if ASYNC
-        public async Task<List<int>> FindItemsStartsWithAsync(T target_key, bool defaultComparer, StringComparison stringComparison)
+        public async Task<List<int>> FindItemsStartsWithAsync(T target_key, bool defaultComparer,
+            StringComparison stringComparison)
         {
-            StopIndicator stop = new StopIndicator();
-            return await Root.FindItemsStartsWithAsync(target_key,defaultComparer,stringComparison, stop).ConfigureAwait(false);
+            var stop = new StopIndicator();
+            return await Root.FindItemsStartsWithAsync(target_key, defaultComparer, stringComparison, stop)
+                .ConfigureAwait(false);
         }
 #endif
         // Remove this item.
@@ -168,335 +153,266 @@ namespace sqoDB.Indexes
 
             // See if the root now has no keys.
             if (Root.NumKeysUsed < 1)
-            {
-                if (Root.Children[0] != null) Root = Root.Children[0];
-            }
+                if (Root.Children[0] != null)
+                    Root = Root.Children[0];
         }
-        public void RemoveOid(T target_key,int oid)
-        {
-            Root.RemoveOID(target_key,oid);
 
+        public void RemoveOid(T target_key, int oid)
+        {
+            Root.RemoveOID(target_key, oid);
         }
 #if ASYNC
         public async Task RemoveOidAsync(T target_key, int oid)
         {
             await Root.RemoveOIDAsync(target_key, oid).ConfigureAwait(false);
-
         }
 #endif
-       public void Dump()
+        public void Dump()
         {
             Root.Dump(0);
         }
 #if ASYNC
-       public async Task DumpAsync()
-       {
-           await Root.DumpAsync(0).ConfigureAwait(false);
-       }
-     
+        public async Task DumpAsync()
+        {
+            await Root.DumpAsync(0).ConfigureAwait(false);
+        }
+
 
 #endif
-       public List<T> DumpKeys()
-       {
-           return Root.DumpKeys();
-       }
+        public List<T> DumpKeys()
+        {
+            return Root.DumpKeys();
+        }
 #if ASYNC
-       public async Task<List<T>> DumpKeysAsync()
-       {
-           return await Root.DumpKeysAsync().ConfigureAwait(false);
-       }
+        public async Task<List<T>> DumpKeysAsync()
+        {
+            return await Root.DumpKeysAsync().ConfigureAwait(false);
+        }
 #endif
-       public int NrNodes()
-       {
-           return 1 + Root.NrNodes();
-       }
+        public int NrNodes()
+        {
+            return 1 + Root.NrNodes();
+        }
 #if ASYNC
-       public async Task<int> NrNodesAsync()
-       {
-           return 1 + await Root.NrNodesAsync().ConfigureAwait(false);
-       }
+        public async Task<int> NrNodesAsync()
+        {
+            return 1 + await Root.NrNodesAsync().ConfigureAwait(false);
+        }
 #endif
-       public void Persist()
-       {
-           if (allowPersistence)
-           {
-               if (dirtyNodes.Count > 0)
-               {
+        public void Persist()
+        {
+            if (allowPersistence)
+                if (dirtyNodes.Count > 0)
+                {
 #if UNITY3D
-                  IEnumerable<BTreeNode<T>> dirtyNodesCol=dirtyNodes;
+                  IEnumerable<BTreeNode<T>> dirtyNodesCol = dirtyNodes;
 #else
-                    IEnumerable<BTreeNode<T>> dirtyNodesCol=dirtyNodes.Keys;
+                    IEnumerable<BTreeNode<T>> dirtyNodesCol = dirtyNodes.Keys;
 #endif
-                  foreach (BTreeNode<T> node in dirtyNodesCol)
-                   {
-                       siaqodb.StoreObject(node);
-                   }
+                    foreach (var node in dirtyNodesCol) siaqodb.StoreObject(node);
 
-                   dirtyNodes.Clear();
-                   if (this.indexInfo.RootOID != this.Root.OID)
-                   {
-                       this.indexInfo.RootOID = this.Root.OID;
-                       siaqodb.StoreObject(this.indexInfo);
-                   }
-               }
-           }
-       }
+                    dirtyNodes.Clear();
+                    if (indexInfo.RootOID != Root.OID)
+                    {
+                        indexInfo.RootOID = Root.OID;
+                        siaqodb.StoreObject(indexInfo);
+                    }
+                }
+        }
 #if ASYNC
-       public async Task PersistAsync()
-       {
-           if (allowPersistence)
-           {
-               if (dirtyNodes.Count > 0)
-               {
+        public async Task PersistAsync()
+        {
+            if (allowPersistence)
+                if (dirtyNodes.Count > 0)
+                {
 #if UNITY3D
-                  IEnumerable<BTreeNode<T>> dirtyNodesCol=dirtyNodes;
+                  IEnumerable<BTreeNode<T>> dirtyNodesCol = dirtyNodes;
 #else
-                   IEnumerable<BTreeNode<T>> dirtyNodesCol = dirtyNodes.Keys;
+                    IEnumerable<BTreeNode<T>> dirtyNodesCol = dirtyNodes.Keys;
 #endif
-                   foreach (BTreeNode<T> node in dirtyNodesCol)
-                   {
-                       await siaqodb.StoreObjectAsync(node).ConfigureAwait(false);
-                   }
+                    foreach (var node in dirtyNodesCol) await siaqodb.StoreObjectAsync(node).ConfigureAwait(false);
 
-                   dirtyNodes.Clear();
-                   if (this.indexInfo.RootOID != this.Root.OID)
-                   {
-                       this.indexInfo.RootOID = this.Root.OID;
-                       await siaqodb.StoreObjectAsync(this.indexInfo).ConfigureAwait(false);
-                   }
-               }
-
-           }
-       }
+                    dirtyNodes.Clear();
+                    if (indexInfo.RootOID != Root.OID)
+                    {
+                        indexInfo.RootOID = Root.OID;
+                        await siaqodb.StoreObjectAsync(indexInfo).ConfigureAwait(false);
+                    }
+                }
+        }
 
 #endif
-       public void AddItem(object new_key, int[] new_value)
-       {
-           this.AddItem((T)new_key, new_value);
-       }
+        public void AddItem(object new_key, int[] new_value)
+        {
+            AddItem((T)new_key, new_value);
+        }
 #if ASYNC
-       public async Task AddItemAsync(object new_key, int[] new_value)
-       {
-           await this.AddItemAsync((T)new_key, new_value).ConfigureAwait(false);
-       }
+        public async Task AddItemAsync(object new_key, int[] new_value)
+        {
+            await AddItemAsync((T)new_key, new_value).ConfigureAwait(false);
+        }
 #endif
-       public int[] FindItem(object target_key)
-       {
-           if (target_key != null)
-           {
-               if (target_key.GetType() != typeof(T))
-               {
-                   target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-               }
-           }
-           return this.FindItem((T)target_key);
-       }
+        public int[] FindItem(object target_key)
+        {
+            if (target_key != null)
+                if (target_key.GetType() != typeof(T))
+                    target_key = Convertor.ChangeType(target_key, typeof(T));
+            return FindItem((T)target_key);
+        }
 #if ASYNC
-       public async Task<int[]> FindItemAsync(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return await this.FindItemAsync((T)target_key).ConfigureAwait(false);
-       }
+        public async Task<int[]> FindItemAsync(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return await FindItemAsync((T)target_key).ConfigureAwait(false);
+        }
 #endif
-       public List<int> FindItemsLessThan(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return FindItemsLessThan((T)target_key);
-       }
+        public List<int> FindItemsLessThan(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return FindItemsLessThan((T)target_key);
+        }
 #if ASYNC
-       public async Task<List<int>> FindItemsLessThanAsync(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return await FindItemsLessThanAsync((T)target_key).ConfigureAwait(false);
-       }
+        public async Task<List<int>> FindItemsLessThanAsync(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return await FindItemsLessThanAsync((T)target_key).ConfigureAwait(false);
+        }
 #endif
-       public List<int> FindItemsLessThanOrEqual(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return FindItemsLessThanOrEqual((T)target_key);
-       }
+        public List<int> FindItemsLessThanOrEqual(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return FindItemsLessThanOrEqual((T)target_key);
+        }
 #if ASYNC
-       public async Task<List<int>> FindItemsLessThanOrEqualAsync(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return await FindItemsLessThanOrEqualAsync((T)target_key).ConfigureAwait(false);
-       }
+        public async Task<List<int>> FindItemsLessThanOrEqualAsync(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return await FindItemsLessThanOrEqualAsync((T)target_key).ConfigureAwait(false);
+        }
 #endif
-       public List<int> FindItemsBiggerThan(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return FindItemsBiggerThan((T)target_key);
-       }
+        public List<int> FindItemsBiggerThan(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return FindItemsBiggerThan((T)target_key);
+        }
 #if ASYNC
-       public async Task<List<int>> FindItemsBiggerThanAsync(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return await FindItemsBiggerThanAsync((T)target_key).ConfigureAwait(false);
-       }
+        public async Task<List<int>> FindItemsBiggerThanAsync(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return await FindItemsBiggerThanAsync((T)target_key).ConfigureAwait(false);
+        }
 #endif
-       public List<int> FindItemsBiggerThanOrEqual(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return FindItemsBiggerThanOrEqual((T)target_key);
-       }
+        public List<int> FindItemsBiggerThanOrEqual(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return FindItemsBiggerThanOrEqual((T)target_key);
+        }
 #if ASYNC
-       public async Task<List<int>> FindItemsBiggerThanOrEqualAsync(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return await FindItemsBiggerThanOrEqualAsync((T)target_key).ConfigureAwait(false);
-       }
+        public async Task<List<int>> FindItemsBiggerThanOrEqualAsync(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return await FindItemsBiggerThanOrEqualAsync((T)target_key).ConfigureAwait(false);
+        }
 #endif
-       public List<int> FindItemsStartsWith(object target_key,bool defaultComparer,StringComparison stringComparison)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return FindItemsStartsWith((T)target_key, defaultComparer, stringComparison);
-       }
+        public List<int> FindItemsStartsWith(object target_key, bool defaultComparer, StringComparison stringComparison)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return FindItemsStartsWith((T)target_key, defaultComparer, stringComparison);
+        }
 #if ASYNC
-       public async Task<List<int>> FindItemsStartsWithAsync(object target_key, bool defaultComparer, StringComparison stringComparison)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           return await FindItemsStartsWithAsync((T)target_key, defaultComparer,stringComparison).ConfigureAwait(false);
-       }
+        public async Task<List<int>> FindItemsStartsWithAsync(object target_key, bool defaultComparer,
+            StringComparison stringComparison)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            return await FindItemsStartsWithAsync((T)target_key, defaultComparer, stringComparison)
+                .ConfigureAwait(false);
+        }
 #endif
-       public void RemoveItem(object target_key)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           RemoveItem((T)target_key);
-       }
-       public void RemoveOid(object target_key,int oid)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           RemoveOid((T)target_key,oid);
-       }
-#if ASYNC
-       public async Task RemoveOidAsync(object target_key, int oid)
-       {
-           if (target_key.GetType() != typeof(T))
-           {
-               target_key = sqoDB.Utilities.Convertor.ChangeType(target_key, typeof(T));
-           }
-           await RemoveOidAsync((T)target_key, oid).ConfigureAwait(false);
-       }
-#endif
-       public void SetRoot(object root)
-       {
-           if (root.GetType() != typeof(BTreeNode<T>))
-           {
-               throw new InvalidOperationException("Root is not " + typeof(T).ToString() + " type");
-           }
-           this.Root = (BTreeNode<T>)root;
+        public void RemoveItem(object target_key)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            RemoveItem((T)target_key);
+        }
 
-           this.Root.siaqodb = this.siaqodb;
-           this.Root.btree = this;
-       }
-       public int GetRootOid()
-       {
-           return this.Root.OID;
-       }
-       public void SetIndexInfo(IndexInfo2 indexInfo)
-       {
-           this.indexInfo = indexInfo;
-       }
-       public void Drop(bool withAllNodes)
-       {
-           if (withAllNodes)
-           {
-               List<BTreeNode<T>> nodesDumped = this.Root.DumpNodes();
-               foreach (BTreeNode<T> n in nodesDumped)
-               {
-                   if (n.OID > 0)
-                   {
-                       siaqodb.Delete(n);
-
-                   }
-               }
-           }
-           else
-           {
-               if (this.Root.OID > 0)
-               {
-                   this.siaqodb.Delete(this.Root);
-               }
-               this.siaqodb.Delete(this.indexInfo);
-           }
-       }
+        public void RemoveOid(object target_key, int oid)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            RemoveOid((T)target_key, oid);
+        }
 #if ASYNC
-       public async Task DropAsync(bool withAllNodes)
-       {
-           if (withAllNodes)
-           {
-               List<BTreeNode<T>> nodesDumped = await this.Root.DumpNodesAsync().ConfigureAwait(false);
-               foreach (BTreeNode<T> n in nodesDumped)
-               {
-                   if (n.OID > 0)
-                   {
-                       await siaqodb.DeleteAsync(n).ConfigureAwait(false);
-
-                   }
-               }
-           }
-           else
-           {
-               await this.siaqodb.DeleteAsync(this.Root).ConfigureAwait(false);
-               await this.siaqodb.DeleteAsync(this.indexInfo).ConfigureAwait(false);
-           }
-       }
+        public async Task RemoveOidAsync(object target_key, int oid)
+        {
+            if (target_key.GetType() != typeof(T)) target_key = Convertor.ChangeType(target_key, typeof(T));
+            await RemoveOidAsync((T)target_key, oid).ConfigureAwait(false);
+        }
 #endif
-       public void AllowPersistance(bool allow)
-       {
-           this.allowPersistence = allow;
-       }
+        public void SetRoot(object root)
+        {
+            if (root.GetType() != typeof(BTreeNode<T>))
+                throw new InvalidOperationException("Root is not " + typeof(T) + " type");
+            Root = (BTreeNode<T>)root;
+
+            Root.siaqodb = siaqodb;
+            Root.btree = this;
+        }
+
+        public int GetRootOid()
+        {
+            return Root.OID;
+        }
+
+        public void SetIndexInfo(IndexInfo2 indexInfo)
+        {
+            this.indexInfo = indexInfo;
+        }
+
+        public void Drop(bool withAllNodes)
+        {
+            if (withAllNodes)
+            {
+                var nodesDumped = Root.DumpNodes();
+                foreach (var n in nodesDumped)
+                    if (n.OID > 0)
+                        siaqodb.Delete(n);
+            }
+            else
+            {
+                if (Root.OID > 0) siaqodb.Delete(Root);
+                siaqodb.Delete(indexInfo);
+            }
+        }
+#if ASYNC
+        public async Task DropAsync(bool withAllNodes)
+        {
+            if (withAllNodes)
+            {
+                var nodesDumped = await Root.DumpNodesAsync().ConfigureAwait(false);
+                foreach (var n in nodesDumped)
+                    if (n.OID > 0)
+                        await siaqodb.DeleteAsync(n).ConfigureAwait(false);
+            }
+            else
+            {
+                await siaqodb.DeleteAsync(Root).ConfigureAwait(false);
+                await siaqodb.DeleteAsync(indexInfo).ConfigureAwait(false);
+            }
+        }
+#endif
+        public void AllowPersistance(bool allow)
+        {
+            allowPersistence = allow;
+        }
     }
 #if ASYNC
-    class AddedItem<T> where T : IComparable
+    internal class AddedItem<T> where T : IComparable
     {
         public T up_key;
-        public int[] up_value;
         public BTreeNode<T> up_node;
+        public int[] up_value;
     }
 #endif
 
 #if UNITY3D
-    
     /// <summary>
     /// put this class just to be recognized by AOT compiler
     /// </summary>
@@ -519,23 +435,23 @@ namespace sqoDB.Indexes
         public BTree<Guid> bGuid;
 		public BTree<bool> bBool;
 		public BTree<string> bStr;
-        public BTreeNode<int> bnint=new BTreeNode<int>();
-        public BTreeNode<uint> bnuint=new BTreeNode<uint>();
-        public BTreeNode<float> bnfloat=new BTreeNode<float>();
-        public BTreeNode<long> bnlong=new BTreeNode<long>();
-        public BTreeNode<ulong> bnulong=new BTreeNode<ulong>();
-        public BTreeNode<short> bnshort=new BTreeNode<short>();
-        public BTreeNode<ushort> bnushort=new BTreeNode<ushort>();
-        public BTreeNode<byte> bnbyte=new BTreeNode<byte>();
-        public BTreeNode<sbyte> bnsbyte=new BTreeNode<sbyte>();
-        public BTreeNode<double> bndouble=new BTreeNode<double>();
-        public BTreeNode<decimal> bndecimal=new BTreeNode<decimal>();
-        public BTreeNode<char> bnchar=new BTreeNode<char>();
-        public BTreeNode<TimeSpan> bnTimeSpan=new BTreeNode<TimeSpan>();
-        public BTreeNode<DateTime> bnDateTime=new BTreeNode<DateTime>();
-        public BTreeNode<Guid> bnGuid=new BTreeNode<Guid>();
-		public BTreeNode<bool> bnBool=new BTreeNode<bool>();
-		public BTreeNode<string> bnStr=new BTreeNode<string>();
+        public BTreeNode<int> bnint = new BTreeNode<int>();
+        public BTreeNode<uint> bnuint = new BTreeNode<uint>();
+        public BTreeNode<float> bnfloat = new BTreeNode<float>();
+        public BTreeNode<long> bnlong = new BTreeNode<long>();
+        public BTreeNode<ulong> bnulong = new BTreeNode<ulong>();
+        public BTreeNode<short> bnshort = new BTreeNode<short>();
+        public BTreeNode<ushort> bnushort = new BTreeNode<ushort>();
+        public BTreeNode<byte> bnbyte = new BTreeNode<byte>();
+        public BTreeNode<sbyte> bnsbyte = new BTreeNode<sbyte>();
+        public BTreeNode<double> bndouble = new BTreeNode<double>();
+        public BTreeNode<decimal> bndecimal = new BTreeNode<decimal>();
+        public BTreeNode<char> bnchar = new BTreeNode<char>();
+        public BTreeNode<TimeSpan> bnTimeSpan = new BTreeNode<TimeSpan>();
+        public BTreeNode<DateTime> bnDateTime = new BTreeNode<DateTime>();
+        public BTreeNode<Guid> bnGuid = new BTreeNode<Guid>();
+		public BTreeNode<bool> bnBool = new BTreeNode<bool>();
+		public BTreeNode<string> bnStr = new BTreeNode<string>();
        
         public DummyBtree(Siaqodb siaqodb)
         {
@@ -554,11 +470,10 @@ namespace sqoDB.Indexes
             bTimeSpan = new BTree<TimeSpan>(siaqodb);
             bDateTime = new BTree<DateTime>(siaqodb);
             bGuid = new BTree<Guid>(siaqodb);
-			bBool=new BTree<bool>(siaqodb);
-			bStr=new BTree<string>(siaqodb);
+			bBool = new BTree<bool>(siaqodb);
+			bStr = new BTree<string>(siaqodb);
         }
 
     }
 #endif
 }
-

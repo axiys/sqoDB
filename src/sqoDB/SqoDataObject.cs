@@ -1,27 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Reflection;
 
 namespace sqoDB
 {
     /// <summary>
-    /// Basic class that any siaqodb storable class may inherits from 
+    ///     Basic class that any siaqodb storable class may inherits from
     /// </summary>
-	[System.Reflection.Obfuscation(Exclude = true)]
-    public class SqoDataObject :ISqoDataObject
+    [Obfuscation(Exclude = true)]
+    public class SqoDataObject : ISqoDataObject
     {
-
-        private int oid;
         /// <summary>
-        /// Object Identifier(unique per Type)
+        ///     Object Identifier(unique per Type)
         /// </summary>
-        public int OID
-        {
-            get { return oid; }
-            set { oid = value; }
-        }
-       #if SILVERLIGHT
+        public int OID { get; set; }
+#if SILVERLIGHT
         /// <summary>
         /// Get value of a field by reflection
         /// </summary>

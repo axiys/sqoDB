@@ -1,64 +1,56 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 using System.IO;
-using sqoDB;
+using System.Reflection;
+using System.Windows.Forms;
+using sqoDB.Attributes;
 
 namespace sqoDB.Manager
 {
-	public partial class AddReference : Form
-	{
-		public AddReference()
-		{
-			InitializeComponent();
-		}
-		private List<ReferenceItem> assemblies = new List<ReferenceItem>();
-		private List<NamespaceItem> namespaces = new List<NamespaceItem>();
-		
-		private void btnOK_Click(object sender, EventArgs e)
-		{
-			if(Directory.Exists(Application.StartupPath ))
-			{
-				assemblies.Clear();
-				namespaces.Clear();
-				Siaqodb siaqodb = new Siaqodb(Application.StartupPath );
+    public partial class AddReference : Form
+    {
+        private readonly List<ReferenceItem> assemblies = new List<ReferenceItem>();
+        private readonly List<NamespaceItem> namespaces = new List<NamespaceItem>();
+
+        public AddReference()
+        {
+            InitializeComponent();
+        }
+
+        private void btnOK_Click(object sender, EventArgs e)
+        {
+            if (Directory.Exists(Application.StartupPath))
+            {
+                assemblies.Clear();
+                namespaces.Clear();
+                var siaqodb = new Siaqodb(Application.StartupPath);
                 try
                 {
                     siaqodb.DropType<ReferenceItem>();
                     siaqodb.DropType<NamespaceItem>();
-                    foreach (object o in listBox1.Items)
+                    foreach (var o in listBox1.Items)
                     {
-                        ReferenceItem refItem = o as ReferenceItem;
-                        if (refItem == null)
-                        {
-                            refItem = new ReferenceItem(o.ToString());
-                        }
+                        var refItem = o as ReferenceItem;
+                        if (refItem == null) refItem = new ReferenceItem(o.ToString());
                         assemblies.Add(refItem);
                         siaqodb.StoreObject(refItem);
 
                         if (File.Exists(refItem.Item))
-                        {
                             try
                             {
-                                File.Copy(refItem.Item, Application.StartupPath + Path.DirectorySeparatorChar + Path.GetFileName(refItem.Item), true);
-                                
-
+                                File.Copy(refItem.Item,
+                                    Application.StartupPath + Path.DirectorySeparatorChar +
+                                    Path.GetFileName(refItem.Item), true);
                             }
                             catch
                             {
-
                             }
-                        }
-
                     }
-                    foreach (string s in textBox1.Text.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries))
+
+                    foreach (var s in textBox1.Text.Split(new[] { Environment.NewLine },
+                                 StringSplitOptions.RemoveEmptyEntries))
                     {
-                        NamespaceItem nobj = new NamespaceItem(s);
+                        var nobj = new NamespaceItem(s);
                         namespaces.Add(nobj);
                         siaqodb.StoreObject(nobj);
                     }
@@ -67,69 +59,58 @@ namespace sqoDB.Manager
                 {
                     siaqodb.Close();
                 }
-			}
-			
-			this.DialogResult = DialogResult.OK;
-		}
-		public List<ReferenceItem> GetReferences()
-		{
-			return assemblies;
-		}
-		public List<NamespaceItem> GetNamespaces()
-		{
-			return namespaces;
-		}
-		private void btnCancel_Click(object sender, EventArgs e)
-		{
-            
-            this.Close();
-		}
+            }
 
-		private void btnAddReference_Click(object sender, EventArgs e)
-		{
-			OpenFileDialog opf = new OpenFileDialog();
-			opf.Filter = "assembly files (*.dll;*.exe)|*.dll;*.exe";
-			opf.InitialDirectory = Application.StartupPath;
-			opf.Multiselect = false;
-			if (opf.ShowDialog() == DialogResult.OK)
-			{
-				listBox1.Items.Add(opf.FileName);
-			}
-		}
+            DialogResult = DialogResult.OK;
+        }
 
-		private void btnRemoveReference_Click(object sender, EventArgs e)
-		{
-			if (this.listBox1.SelectedItem != null)
-			{
-				this.listBox1.Items.Remove(this.listBox1.SelectedItem);
-			}
-		}
+        public List<ReferenceItem> GetReferences()
+        {
+            return assemblies;
+        }
 
-		private void AddReference_Load(object sender, EventArgs e)
-		{
-            if (Directory.Exists(Application.StartupPath ))
+        public List<NamespaceItem> GetNamespaces()
+        {
+            return namespaces;
+        }
+
+        private void btnCancel_Click(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void btnAddReference_Click(object sender, EventArgs e)
+        {
+            var opf = new OpenFileDialog();
+            opf.Filter = "assembly files (*.dll;*.exe)|*.dll;*.exe";
+            opf.InitialDirectory = Application.StartupPath;
+            opf.Multiselect = false;
+            if (opf.ShowDialog() == DialogResult.OK) listBox1.Items.Add(opf.FileName);
+        }
+
+        private void btnRemoveReference_Click(object sender, EventArgs e)
+        {
+            if (listBox1.SelectedItem != null) listBox1.Items.Remove(listBox1.SelectedItem);
+        }
+
+        private void AddReference_Load(object sender, EventArgs e)
+        {
+            if (Directory.Exists(Application.StartupPath))
             {
-                Siaqodb siaqodb = new Siaqodb(Application.StartupPath );
+                var siaqodb = new Siaqodb(Application.StartupPath);
                 try
                 {
-                    IObjectList<ReferenceItem> references = siaqodb.LoadAll<ReferenceItem>();
-                    foreach (ReferenceItem refItem in references)
-                    {
-                        listBox1.Items.Add(refItem);
-                    }
-                    IObjectList<NamespaceItem> namespacesItems = siaqodb.LoadAll<NamespaceItem>();
-                    foreach (NamespaceItem nItem in namespacesItems)
-                    {
-                        textBox1.Text += nItem + Environment.NewLine;
-                    }
+                    var references = siaqodb.LoadAll<ReferenceItem>();
+                    foreach (var refItem in references) listBox1.Items.Add(refItem);
+                    var namespacesItems = siaqodb.LoadAll<NamespaceItem>();
+                    foreach (var nItem in namespacesItems) textBox1.Text += nItem + Environment.NewLine;
                 }
                 finally
                 {
                     siaqodb.Close();
                 }
-
             }
-		}
+        }
 
         private void btnAddDefault_Click(object sender, EventArgs e)
         {
@@ -138,41 +119,45 @@ namespace sqoDB.Manager
             listBox1.Items.Add("System.Windows.Forms.dll");
             listBox1.Items.Add("siaqodb.dll");
         }
-	}
-    [System.Reflection.Obfuscation(Exclude = true)]
-	public class ReferenceItem : SqoDataObject
-	{
-		public ReferenceItem()
-		{
+    }
 
-		}
-		public ReferenceItem(string item)
-		{
-			this.Item = item;
-		}
-		[Attributes.MaxLength(2000)]
-		public string Item;
-		public override string ToString()
-		{
-			return Item;
-		}
-	}
-    [System.Reflection.Obfuscation(Exclude = true)]
-	public class NamespaceItem : SqoDataObject
-	{
-		public NamespaceItem()
-		{
+    [Obfuscation(Exclude = true)]
+    public class ReferenceItem : SqoDataObject
+    {
+        [MaxLength(2000)] public string Item;
 
-		}
-		public NamespaceItem(string item)
-		{
-			this.Item = item;
-		}
-		[Attributes.MaxLength(2000)]
-		public string Item;
-		public override string ToString()
-		{
-			return Item;
-		}
-	}
+        public ReferenceItem()
+        {
+        }
+
+        public ReferenceItem(string item)
+        {
+            Item = item;
+        }
+
+        public override string ToString()
+        {
+            return Item;
+        }
+    }
+
+    [Obfuscation(Exclude = true)]
+    public class NamespaceItem : SqoDataObject
+    {
+        [MaxLength(2000)] public string Item;
+
+        public NamespaceItem()
+        {
+        }
+
+        public NamespaceItem(string item)
+        {
+            Item = item;
+        }
+
+        public override string ToString()
+        {
+            return Item;
+        }
+    }
 }

@@ -1,95 +1,93 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace sqoDB
 {
-	public class SavingEventsArgs:EventArgs
-	{
-		public bool Cancel { get; set; }
-		internal SavingEventsArgs(Type t, Object o)
-		{
-			this.oType = t;
-			this.o = o;
-            
-		}
-		private Type oType;
-		private Object o;
-		public Type ObjectType { get{return oType;}}
-		public object Object { get{return o;} }
-	}
-	public class SavedEventsArgs : EventArgs
-	{
-		internal SavedEventsArgs(Type t, Object o)
-		{
-			this.oType = t;
-			this.o = o;
-		}
-		private Type oType;
-		private Object o;
-		public Type ObjectType { get{return oType;}}
-		public object Object { get{return o;} }
-        bool inserted;
-        public bool Inserted
+    public class SavingEventsArgs : EventArgs
+    {
+        internal SavingEventsArgs(Type t, object o)
         {
-            get { return inserted; }
-            internal set { inserted = value; }
+            ObjectType = t;
+            Object = o;
         }
-	}
-	public class DeletingEventsArgs : EventArgs
-	{
-		public bool Cancel { get; set; }
-		internal DeletingEventsArgs(Type t, int oid)
-		{
-			this.oType = t;
-			this.oid = oid;
-		}
-		private Type oType;
-		private int oid;
-		public Type ObjectType { get { return oType; } }
-		public int Object { get { return oid; } }
-	}
-	public class DeletedEventsArgs : EventArgs
-	{
-		internal DeletedEventsArgs(Type t, int oid)
-		{
-			this.oType = t;
-			this.oid = oid;
-		}
-		private Type oType;
-		private int oid;
-		public Type ObjectType { get { return oType; } }
-		public int OID { get { return oid; } }
-	}
+
+        public bool Cancel { get; set; }
+        public Type ObjectType { get; }
+
+        public object Object { get; }
+    }
+
+    public class SavedEventsArgs : EventArgs
+    {
+        internal SavedEventsArgs(Type t, object o)
+        {
+            ObjectType = t;
+            Object = o;
+        }
+
+        public Type ObjectType { get; }
+
+        public object Object { get; }
+
+        public bool Inserted { get; internal set; }
+    }
+
+    public class DeletingEventsArgs : EventArgs
+    {
+        internal DeletingEventsArgs(Type t, int oid)
+        {
+            ObjectType = t;
+            Object = oid;
+        }
+
+        public bool Cancel { get; set; }
+        public Type ObjectType { get; }
+
+        public int Object { get; }
+    }
+
+    public class DeletedEventsArgs : EventArgs
+    {
+        internal DeletedEventsArgs(Type t, int oid)
+        {
+            ObjectType = t;
+            OID = oid;
+        }
+
+        public Type ObjectType { get; }
+
+        public int OID { get; }
+    }
+
     public class LoadingObjectEventArgs : EventArgs
     {
-        public bool Cancel { get; set; }
-        private Type oType;
-        private int oid;
-        public Type ObjectType { get { return oType; } }
-        public int OID { get { return oid; } }
-        public Object Replace { get; set; }
         internal LoadingObjectEventArgs(int oid, Type objectType)
         {
-            this.oid = oid;
-            this.oType = objectType;
+            OID = oid;
+            ObjectType = objectType;
         }
+
+        public bool Cancel { get; set; }
+        public Type ObjectType { get; }
+
+        public int OID { get; }
+
+        public object Replace { get; set; }
     }
+
     public class LoadedObjectEventArgs : EventArgs
     {
-        private int oid;
-        private object obj;
-        public Object Object { get { return obj; } }
-        public int OID { get { return oid; } }
-
         internal LoadedObjectEventArgs(int oid, object obj)
         {
-            this.oid = oid;
-            this.obj = obj;
+            OID = oid;
+            Object = obj;
         }
+
+        public object Object { get; }
+
+        public int OID { get; }
     }
-    public class IndexesSaveAsyncFinishedArgs:EventArgs
+
+    public class IndexesSaveAsyncFinishedArgs : EventArgs
     {
         public Exception Error { get; set; }
         public bool Succeeded { get; set; }

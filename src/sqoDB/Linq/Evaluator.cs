@@ -1,25 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace sqoDB
 {
-
-    [System.Reflection.Obfuscation(Exclude = true)]
-
+    [Obfuscation(Exclude = true)]
     internal static class Evaluator
     {
-
         /// <summary>
-        /// Performs evaluation & replacement of independent sub-trees
+        ///     Performs evaluation & replacement of independent sub-trees
         /// </summary>
         /// <param name="expression">The root of the expression tree.</param>
-        /// <param name="fnCanBeEvaluated">A function that decides whether a given expression node can be part of the local function.</param>
+        /// <param name="fnCanBeEvaluated">
+        ///     A function that decides whether a given expression node can be part of the local
+        ///     function.
+        /// </param>
         /// <returns>A new tree with sub-trees evaluated and replaced.</returns>
-
         public static Expression PartialEval(Expression expression, Func<Expression, bool> fnCanBeEvaluated)
         {
             return new SubtreeEvaluator(new Nominator(fnCanBeEvaluated).Nominate(expression)).Eval(expression);
@@ -27,94 +24,55 @@ namespace sqoDB
 
 
         /// <summary>
-        /// Performs evaluation & replacement of independent sub-trees
-       /// </summary>
-
+        ///     Performs evaluation & replacement of independent sub-trees
+        /// </summary>
         /// <param name="expression">The root of the expression tree.</param>
-
         /// <returns>A new tree with sub-trees evaluated and replaced.</returns>
-
         public static Expression PartialEval(Expression expression)
         {
-
-            return PartialEval(expression, Evaluator.CanBeEvaluatedLocally);
-
+            return PartialEval(expression, CanBeEvaluatedLocally);
         }
-
 
 
         private static bool CanBeEvaluatedLocally(Expression expression)
         {
-
             return expression.NodeType != ExpressionType.Parameter;
-
         }
 
 
-
         /// <summary>
-
-        /// Evaluates & replaces sub-trees when first candidate is reached (top-down)
-
+        ///     Evaluates & replaces sub-trees when first candidate is reached (top-down)
         /// </summary>
-
-        class SubtreeEvaluator : ExpressionVisitor
+        private class SubtreeEvaluator : ExpressionVisitor
         {
-
-            List<Expression> candidates;
-
+            private readonly List<Expression> candidates;
 
 
             internal SubtreeEvaluator(List<Expression> candidates)
             {
-				
                 this.candidates = candidates;
-
             }
-
 
 
             internal Expression Eval(Expression exp)
             {
-
-                return this.Visit(exp);
-
+                return Visit(exp);
             }
-
 
 
             protected override Expression Visit(Expression exp)
             {
+                if (exp == null) return null;
 
-                if (exp == null)
-                {
-
-                    return null;
-
-                }
-
-                if (this.candidates.Contains(exp))
-                {
-
-                    return this.Evaluate(exp);
-
-                }
+                if (candidates.Contains(exp)) return Evaluate(exp);
 
                 return base.Visit(exp);
-
             }
-
 
 
             private Expression Evaluate(Expression e)
             {
-
-                if (e.NodeType == ExpressionType.Constant)
-                {
-
-                    return e;
-
-                }
+                if (e.NodeType == ExpressionType.Constant) return e;
 #if UNITY3D
                 MemberExpression m = e as MemberExpression;
                 
@@ -129,7 +87,7 @@ namespace sqoDB
                         if (m.Member is FieldInfo)
                         {
                             FieldInfo fi = (FieldInfo)m.Member;
-                            value = fi.GetValue(@obj);
+                            value = fi.GetValue(obj);
                             type = fi.FieldType;
                         }
                         else if (m.Member is PropertyInfo)
@@ -143,112 +101,80 @@ namespace sqoDB
                         return Expression.Constant(value, type);
                     }
                 }
-               
+
 #endif
-                LambdaExpression lambda = Expression.Lambda(e);
+                var lambda = Expression.Lambda(e);
 
-				#if (WP7 || UNITY3D) && !MANGO  && !XIOS
+#if (WP7 || UNITY3D) && !MANGO && !XIOS
                 Delegate fn = ExpressionCompiler.ExpressionCompiler.Compile(lambda);
-            #else
+#else
 
-                Delegate fn = lambda.Compile();
-            #endif
+                var fn = lambda.Compile();
+#endif
 
 #if CF
-
                 return Expression.Constant(fn.Method.Invoke(fn.Target, new object[0]),e.Type);
 #else
                 return Expression.Constant(fn.DynamicInvoke(null), e.Type);
-                
+
 #endif
-
-			}
-
+            }
         }
 
 
-
         /// <summary>
-
-        /// Performs bottom-up analysis to determine which nodes can possibly
-
-        /// be part of an evaluated sub-tree.
-
+        ///     Performs bottom-up analysis to determine which nodes can possibly
+        ///     be part of an evaluated sub-tree.
         /// </summary>
-
-        class Nominator : ExpressionVisitor
+        private class Nominator : ExpressionVisitor
         {
+            private List<Expression> candidates;
 
-            Func<Expression, bool> fnCanBeEvaluated;
+            private bool cannotBeEvaluated;
 
-            List<Expression> candidates;
-
-            bool cannotBeEvaluated;
-
+            private readonly Func<Expression, bool> fnCanBeEvaluated;
 
 
             internal Nominator(Func<Expression, bool> fnCanBeEvaluated)
             {
-
                 this.fnCanBeEvaluated = fnCanBeEvaluated;
-
             }
-
 
 
             internal List<Expression> Nominate(Expression expression)
             {
+                candidates = new List<Expression>();
 
-                this.candidates = new List<Expression>();
+                Visit(expression);
 
-                this.Visit(expression);
-
-                return this.candidates;
-
+                return candidates;
             }
-
 
 
             protected override Expression Visit(Expression expression)
             {
-
                 if (expression != null)
                 {
+                    var saveCannotBeEvaluated = cannotBeEvaluated;
 
-                    bool saveCannotBeEvaluated = this.cannotBeEvaluated;
-
-                    this.cannotBeEvaluated = false;
+                    cannotBeEvaluated = false;
 
                     base.Visit(expression);
 
-                    if (!this.cannotBeEvaluated)
+                    if (!cannotBeEvaluated)
                     {
-
-                        if (this.fnCanBeEvaluated(expression))
-                        {
-
-                            this.candidates.Add(expression);
-
-                        }
+                        if (fnCanBeEvaluated(expression))
+                            candidates.Add(expression);
 
                         else
-                        {
-
-                            this.cannotBeEvaluated = true;
-
-                        }
-
+                            cannotBeEvaluated = true;
                     }
 
-                    this.cannotBeEvaluated |= saveCannotBeEvaluated;
-
+                    cannotBeEvaluated |= saveCannotBeEvaluated;
                 }
 
                 return expression;
-
             }
-
         }
-
     }
 }

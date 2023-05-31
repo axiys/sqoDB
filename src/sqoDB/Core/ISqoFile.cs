@@ -1,32 +1,29 @@
-﻿using System;
+﻿using System.Threading.Tasks;
 
 namespace sqoDB.Core
 {
     internal interface ISqoFile
     {
+        bool IsClosed { get; }
 
-         void Write(long pos, byte[] buf);
+        long Length { get; set; }
 
-         void Write(byte[] buf);
-         int Read(long pos, byte[] buf);
-         
-         bool IsClosed { get; }
+        void Write(long pos, byte[] buf);
 
-         void Flush();
+        void Write(byte[] buf);
+        int Read(long pos, byte[] buf);
+
+        void Flush();
 
 
-         void Close();
-
-         long Length { get; set; }
+        void Close();
 
 
 #if ASYNC
-         System.Threading.Tasks.Task WriteAsync(long pos, byte[] buf);
-         System.Threading.Tasks.Task WriteAsync(byte[] buf);
-         System.Threading.Tasks.Task <int> ReadAsync(long pos, byte[] buf);
-         System.Threading.Tasks.Task FlushAsync();
+        Task WriteAsync(long pos, byte[] buf);
+        Task WriteAsync(byte[] buf);
+        Task<int> ReadAsync(long pos, byte[] buf);
+        Task FlushAsync();
 #endif
-
-
     }
 }

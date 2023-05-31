@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace sqoDBDB.Tests
 {
     internal class TestUtils
     {
-        private static string _objPath = null;
+        private static string _objPath;
 
         public static string GetTempPath()
         {

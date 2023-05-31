@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace sqoDB.MetaObjects
+﻿namespace sqoDB.MetaObjects
 {
-    class DictionaryInfo
+    internal class DictionaryInfo
     {
-        public int KeyTypeId; 
-        public int ValueTypeId;
-        public int RawOID;
+        public int KeyTypeId;
         public int NrElements;
+        public int RawOID;
+        public int ValueTypeId;
     }
 }

@@ -1,34 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Linq.Expressions;
-using System.Reflection;
-
 #if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB
 {
-    
     public static class SqoQueryExtensions
     {
-
-        public static ISqoQuery<TSource> Where<TSource>(this ISqoQuery<TSource> self, Expression<Func<TSource, bool>> expression)
+        public static ISqoQuery<TSource> Where<TSource>(this ISqoQuery<TSource> self,
+            Expression<Func<TSource, bool>> expression)
         {
             return self.SqoWhere(expression);
         }
-      
-		public static ISqoQuery<TRet> Select<TSource, TRet>(this ISqoQuery<TSource> self, Expression<Func<TSource, TRet>> selector)
-		{
-            return self.SqoSelect<TRet>(selector);
-		}
-		public static ISqoQuery<TResult> Join<TOuter, TInner, TKey, TResult>(this ISqoQuery<TOuter> outer, IEnumerable<TInner> inner, Expression<Func<TOuter, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<TOuter, TInner, TResult>> resultSelector)
-		{
-            return outer.SqoJoin<TInner, TKey, TResult>(inner, outerKeySelector, innerKeySelector, resultSelector);
-            
-		}
+
+        public static ISqoQuery<TRet> Select<TSource, TRet>(this ISqoQuery<TSource> self,
+            Expression<Func<TSource, TRet>> selector)
+        {
+            return self.SqoSelect(selector);
+        }
+
+        public static ISqoQuery<TResult> Join<TOuter, TInner, TKey, TResult>(this ISqoQuery<TOuter> outer,
+            IEnumerable<TInner> inner, Expression<Func<TOuter, TKey>> outerKeySelector,
+            Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<TOuter, TInner, TResult>> resultSelector)
+        {
+            return outer.SqoJoin(inner, outerKeySelector, innerKeySelector, resultSelector);
+        }
+
         public static int Count<TSource>(this ISqoQuery<TSource> source)
         {
             return source.SqoCount();
@@ -37,19 +36,18 @@ namespace sqoDB
 #if ASYNC
         public static Task<int> CountAsync<TSource>(this ISqoQuery<TSource> source)
         {
-            return  source.SqoCountAsync();
+            return source.SqoCountAsync();
         }
 #endif
 
- 
 
-        
         public static int Count<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
         {
             return source.SqoCount(expression);
         }
 #if ASYNC
-        public static Task<int> CountAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<int> CountAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoCountAsync(expression);
         }
@@ -65,13 +63,15 @@ namespace sqoDB
             return source.SqoFirstOrDefaultAsync();
         }
 #endif
- 
-        public static TSource FirstOrDefault<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+
+        public static TSource FirstOrDefault<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoFirstOrDefault(expression);
         }
 #if ASYNC
-        public static Task<TSource> FirstOrDefaultAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<TSource> FirstOrDefaultAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoFirstOrDefaultAsync(expression);
         }
@@ -91,7 +91,8 @@ namespace sqoDB
             return source.SqoFirst(expression);
         }
 #if ASYNC
-        public static Task<TSource> FirstAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<TSource> FirstAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoFirstAsync(expression);
         }
@@ -99,7 +100,6 @@ namespace sqoDB
         public static bool Any<TSource>(this ISqoQuery<TSource> source)
         {
             return source.SqoAny();
-            
         }
 #if ASYNC
         public static Task<bool> AnyAsync<TSource>(this ISqoQuery<TSource> source)
@@ -112,7 +112,8 @@ namespace sqoDB
             return source.SqoAny(expression);
         }
 #if ASYNC
-        public static Task<bool> AnyAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<bool> AnyAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoAnyAsync(expression);
         }
@@ -133,7 +134,8 @@ namespace sqoDB
             return source.SqoLast(expression);
         }
 #if ASYNC
-        public static Task<TSource> LastAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<TSource> LastAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoLastAsync(expression);
         }
@@ -148,12 +150,14 @@ namespace sqoDB
             return source.SqoLastOrDefaultAsync();
         }
 #endif
-        public static TSource LastOrDefault<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static TSource LastOrDefault<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoLastOrDefault(expression);
         }
 #if ASYNC
-        public static Task<TSource> LastOrDefaultAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<TSource> LastOrDefaultAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoLastOrDefaultAsync(expression);
         }
@@ -161,26 +165,23 @@ namespace sqoDB
         public static TSource Single<TSource>(this ISqoQuery<TSource> source)
         {
             return source.SqoSingle();
-
         }
 #if ASYNC
         public static Task<TSource> SingleAsync<TSource>(this ISqoQuery<TSource> source)
         {
             return source.SqoSingleAsync();
-
         }
 #endif
-        public static TSource Single<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static TSource Single<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoSingle(expression);
-            
         }
 #if ASYNC
-        public static Task<TSource> SingleAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<TSource> SingleAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
-
             return source.SqoSingleAsync(expression);
-
         }
 #endif
         public static TSource SingleOrDefault<TSource>(this ISqoQuery<TSource> source)
@@ -193,12 +194,14 @@ namespace sqoDB
             return source.SqoSingleOrDefaultAsync();
         }
 #endif
-        public static TSource SingleOrDefault<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static TSource SingleOrDefault<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoSingleOrDefault(expression);
         }
 #if ASYNC
-        public static Task<TSource> SingleOrDefaultAsync<TSource>(this ISqoQuery<TSource> source, Expression<Func<TSource, bool>> expression)
+        public static Task<TSource> SingleOrDefaultAsync<TSource>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, bool>> expression)
         {
             return source.SqoSingleOrDefaultAsync(expression);
         }
@@ -227,28 +230,31 @@ namespace sqoDB
         {
             return source.SqoInclude(path);
         }
-		#if !UNITY3D || XIOS
+#if !UNITY3D || XIOS
 
-        public static ISqoOrderedQuery<TSource> OrderBy<TSource, TKey>(this ISqoQuery<TSource> source, Expression<Func<TSource, TKey>> keySelector)
+        public static ISqoOrderedQuery<TSource> OrderBy<TSource, TKey>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, TKey>> keySelector)
         {
-            return source.SqoOrderBy<TKey>(keySelector);
+            return source.SqoOrderBy(keySelector);
+        }
 
-        }
-        public static ISqoOrderedQuery<TSource> OrderByDescending<TSource, TKey>(this ISqoQuery<TSource> source, Expression<Func<TSource, TKey>> keySelector)
+        public static ISqoOrderedQuery<TSource> OrderByDescending<TSource, TKey>(this ISqoQuery<TSource> source,
+            Expression<Func<TSource, TKey>> keySelector)
         {
-            return source.SqoOrderByDescending<TKey>(keySelector);
+            return source.SqoOrderByDescending(keySelector);
+        }
 
-        }
-        public static ISqoOrderedQuery<TSource> ThenBy<TSource, TKey>(this ISqoOrderedQuery<TSource> source, Expression<Func<TSource, TKey>> keySelector)
+        public static ISqoOrderedQuery<TSource> ThenBy<TSource, TKey>(this ISqoOrderedQuery<TSource> source,
+            Expression<Func<TSource, TKey>> keySelector)
         {
-            return source.SqoThenBy<TKey>(keySelector);
-          
+            return source.SqoThenBy(keySelector);
         }
-        public static ISqoOrderedQuery<TSource> ThenByDescending<TSource, TKey>(this ISqoOrderedQuery<TSource> source, Expression<Func<TSource, TKey>> keySelector)
+
+        public static ISqoOrderedQuery<TSource> ThenByDescending<TSource, TKey>(this ISqoOrderedQuery<TSource> source,
+            Expression<Func<TSource, TKey>> keySelector)
         {
-            return source.SqoThenByDescending<TKey>(keySelector);
+            return source.SqoThenByDescending(keySelector);
         }
-#endif   
-       
+#endif
     }
 }

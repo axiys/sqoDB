@@ -1,18 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Reflection;
+using sqoDB.Attributes;
 
 namespace sqoDB.MetaObjects
 {
-     [System.Reflection.Obfuscation(Exclude = true)]
-    class DocumentInfo
+    [Obfuscation(Exclude = true)]
+    internal class DocumentInfo
     {
         public int OID { get; set; }
-        [Attributes.MaxLength(300)]
-        public string TypeName;
+        [MaxLength(300)] public string TypeName;
         public byte[] Document;
-       
+
 
 #if SILVERLIGHT
         public object GetValue(System.Reflection.FieldInfo field)

@@ -1,74 +1,68 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using sqoDB.Meta;
+﻿using sqoDB.Meta;
 using sqoDB.Queries;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
+
 namespace sqoDB.MetaObjects
 {
-    class RawdataManager
+    internal class RawdataManager
     {
-        StorageEngine storageEngine;
+        private readonly StorageEngine storageEngine;
+
         public RawdataManager(StorageEngine storageEngine)
         {
             this.storageEngine = storageEngine;
         }
+
         public RawdataInfo GetRawdataInfo(int oid)
         {
-            RawdataInfo info = storageEngine.LoadObjectByOID<RawdataInfo>(this.GetSqoTypeInfo(), oid,false);
+            var info = storageEngine.LoadObjectByOID<RawdataInfo>(GetSqoTypeInfo(), oid, false);
             return info;
         }
 #if ASYNC
         public async Task<RawdataInfo> GetRawdataInfoAsync(int oid)
         {
-            RawdataInfo info = await storageEngine.LoadObjectByOIDAsync<RawdataInfo>(this.GetSqoTypeInfo(), oid, false).ConfigureAwait(false);
+            var info = await storageEngine.LoadObjectByOIDAsync<RawdataInfo>(GetSqoTypeInfo(), oid, false)
+                .ConfigureAwait(false);
             return info;
         }
 #endif
-        
+
         public RawdataInfo GetFreeRawdataInfo(int rawLength)
         {
-            Where w = new Where("IsFree", OperationType.Equal, true);
-            w.StorageEngine=this.storageEngine;
-            w.ParentSqoTypeInfo = this.GetSqoTypeInfo();
+            var w = new Where("IsFree", OperationType.Equal, true);
+            w.StorageEngine = storageEngine;
+            w.ParentSqoTypeInfo = GetSqoTypeInfo();
             w.ParentType.Add(w.ParentSqoTypeInfo.Type);
-            Where w1 = new Where("Length", OperationType.GreaterThanOrEqual, rawLength);
-            w1.StorageEngine=storageEngine;
-            w1.ParentSqoTypeInfo = this.GetSqoTypeInfo();
+            var w1 = new Where("Length", OperationType.GreaterThanOrEqual, rawLength);
+            w1.StorageEngine = storageEngine;
+            w1.ParentSqoTypeInfo = GetSqoTypeInfo();
             w1.ParentType.Add(w1.ParentSqoTypeInfo.Type);
-            And and = new And();
-            and.Add(w,w1);
+            var and = new And();
+            and.Add(w, w1);
 
-            List<int> oids = and.GetOIDs();
-            if (oids.Count > 0)
-            {
-                return this.GetRawdataInfo(oids[0]);
-            }
+            var oids = and.GetOIDs();
+            if (oids.Count > 0) return GetRawdataInfo(oids[0]);
 
             return null;
         }
 #if ASYNC
         public async Task<RawdataInfo> GetFreeRawdataInfoAsync(int rawLength)
         {
-            Where w = new Where("IsFree", OperationType.Equal, true);
-            w.StorageEngine = this.storageEngine;
-            w.ParentSqoTypeInfo = this.GetSqoTypeInfo();
+            var w = new Where("IsFree", OperationType.Equal, true);
+            w.StorageEngine = storageEngine;
+            w.ParentSqoTypeInfo = GetSqoTypeInfo();
             w.ParentType.Add(w.ParentSqoTypeInfo.Type);
-            Where w1 = new Where("Length", OperationType.GreaterThanOrEqual, rawLength);
+            var w1 = new Where("Length", OperationType.GreaterThanOrEqual, rawLength);
             w1.StorageEngine = storageEngine;
-            w1.ParentSqoTypeInfo = this.GetSqoTypeInfo();
+            w1.ParentSqoTypeInfo = GetSqoTypeInfo();
             w1.ParentType.Add(w1.ParentSqoTypeInfo.Type);
-            And and = new And();
+            var and = new And();
             and.Add(w, w1);
 
-            List<int> oids = await and.GetOIDsAsync().ConfigureAwait(false);
-            if (oids.Count > 0)
-            {
-                return await this.GetRawdataInfoAsync(oids[0]).ConfigureAwait(false);
-            }
+            var oids = await and.GetOIDsAsync().ConfigureAwait(false);
+            if (oids.Count > 0) return await GetRawdataInfoAsync(oids[0]).ConfigureAwait(false);
 
             return null;
         }
@@ -85,35 +79,36 @@ namespace sqoDB.MetaObjects
 #endif
         public int GetNextOID()
         {
-            SqoTypeInfo ti = this.GetSqoTypeInfo();
+            var ti = GetSqoTypeInfo();
             return ti.Header.numberOfRecords + 1;
         }
+
         private SqoTypeInfo GetSqoTypeInfo()
         {
             SqoTypeInfo ti = null;
-            if (this.storageEngine.metaCache.Contains(typeof(RawdataInfo)))
+            if (storageEngine.metaCache.Contains(typeof(RawdataInfo)))
             {
-                ti = this.storageEngine.metaCache.GetSqoTypeInfo(typeof(RawdataInfo));
+                ti = storageEngine.metaCache.GetSqoTypeInfo(typeof(RawdataInfo));
             }
             else
             {
                 ti = MetaExtractor.GetSqoTypeInfo(typeof(RawdataInfo));
-               
-                storageEngine.SaveType(ti);
-                this.storageEngine.metaCache.AddType(typeof(RawdataInfo), ti);
-               
 
+                storageEngine.SaveType(ti);
+                storageEngine.metaCache.AddType(typeof(RawdataInfo), ti);
             }
+
             return ti;
         }
+
         internal void MarkRawInfoAsFree(int oid)
         {
-            this.storageEngine.SaveValue(oid, "IsFree", this.GetSqoTypeInfo(), true);
+            storageEngine.SaveValue(oid, "IsFree", GetSqoTypeInfo(), true);
         }
 #if ASYNC
         internal async Task MarkRawInfoAsFreeAsync(int oid)
         {
-            await this.storageEngine.SaveValueAsync(oid, "IsFree", this.GetSqoTypeInfo(), true).ConfigureAwait(false);
+            await storageEngine.SaveValueAsync(oid, "IsFree", GetSqoTypeInfo(), true).ConfigureAwait(false);
         }
 #endif
     }

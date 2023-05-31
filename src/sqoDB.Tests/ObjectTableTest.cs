@@ -1,44 +1,33 @@
-﻿using System;
-using System.Text;
-using System.Collections.Generic;
-using System.Linq;
-using NUnit.Framework;
-
+﻿using NUnit.Framework;
 
 namespace sqoDBDB.Tests
 {
     /// <summary>
-    /// Summary description for ObjectTableTest
+    ///     Summary description for ObjectTableTest
     /// </summary>
     [TestFixture]
     public class ObjectTableTest
     {
-        public ObjectTableTest()
-        {
-            //
-            // TODO: Add constructor logic here
-            //
-        }
-
-        private TestContext testContextInstance;
-
         /// <summary>
-        ///Gets or sets the test context which provides
-        ///information about and functionality for the current test run.
-        ///</summary>
-        public TestContext TestContext
-        {
-            get
-            {
-                return testContextInstance;
-            }
-            set
-            {
-                testContextInstance = value;
-            }
-        }
+        ///     Gets or sets the test context which provides
+        ///     information about and functionality for the current test run.
+        /// </summary>
+        public TestContext TestContext { get; set; }
 
-        #region Additional test attributes
+        [Test]
+        public void Test1()
+        {
+            //ObjectTable tb = new ObjectTable();
+            //tb.Columns.Add("unu");
+            //tb.Columns.Add("doi");
+            //for (int i = 0; i < 1000; i++)
+            //{
+            //    ObjectRow row = tb.NewRow();
+            //    row["unu"] = i;
+            //    row[1] = 1 + i;
+            //    tb.Rows.Add(row);
+            //}
+        }
         //
         // You can use the following additional attributes as you write your tests:
         //
@@ -58,22 +47,5 @@ namespace sqoDBDB.Tests
         // [TestCleanup()]
         // public void MyTestCleanup() { }
         //
-        #endregion
-
-        [Test]
-        public void Test1()
-        {
-            //ObjectTable tb = new ObjectTable();
-            //tb.Columns.Add("unu");
-            //tb.Columns.Add("doi");
-            //for (int i = 0; i < 1000; i++)
-            //{
-            //    ObjectRow row = tb.NewRow();
-            //    row["unu"] = i;
-            //    row[1] = 1 + i;
-            //    tb.Rows.Add(row);
-            //}
-
-        }
     }
 }

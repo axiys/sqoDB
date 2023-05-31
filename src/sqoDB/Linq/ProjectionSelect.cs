@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 #if ASYNC
 using System.Threading.Tasks;
@@ -11,72 +9,51 @@ using sqoDB.Exceptions;
 
 namespace sqoDB
 {
-	class ProjectionSelectReader<T,TSource> : ISqoQuery<T>
-	{
-
-		EnumeratorSelect<T> enumerator;
-		SqoQuery<TSource> query;
-		public ProjectionSelectReader(List<SqoColumn> columns, Func<ProjectionRow, T> projector, SqoQuery<TSource> query )
-		{
-			this.enumerator = new EnumeratorSelect<T>(columns, projector);
-			this.query = query;
-		}
+    internal class ProjectionSelectReader<T, TSource> : ISqoQuery<T>
+    {
+        private readonly EnumeratorSelect<T> enumerator;
+        private readonly SqoQuery<TSource> query;
+        public ProjectionSelectReader(List<SqoColumn> columns, Func<ProjectionRow, T> projector,
+            SqoQuery<TSource> query)
+        {
+            enumerator = new EnumeratorSelect<T>(columns, projector);
+            this.query = query;
+        }
 #if ASYNC
         public async Task<IList<T>> ToListAsync()
         {
-            EnumeratorSelect<T> e = this.enumerator;
+            var e = enumerator;
             e.siaqodb = query.Siaqodb;
-            List<int> oids = await this.query.GetFilteredOidsAsync();
+            var oids = await query.GetFilteredOidsAsync();
 
-            if (oids == null)
-            {
-                oids = await e.siaqodb.LoadAllOIDsAsync<TSource>();
-
-            }
+            if (oids == null) oids = await e.siaqodb.LoadAllOIDsAsync<TSource>();
             e.oids = oids;
 
-            if (e == null)
-            {
-                throw new InvalidOperationException("Cannot enumerate more than once");
-            }
-            List<T> list = new List<T>();
-            while (await e.MoveNextAsync())
-            {
-                list.Add(e.Current);
-            }
+            if (e == null) throw new InvalidOperationException("Cannot enumerate more than once");
+            var list = new List<T>();
+            while (await e.MoveNextAsync()) list.Add(e.Current);
             return list;
-
         }
 #endif
-		public IEnumerator<T> GetEnumerator()
-		{
-			EnumeratorSelect<T> e = this.enumerator;
-			e.siaqodb = query.Siaqodb;
-			List<int> oids = this.query.GetFilteredOids();
+        public IEnumerator<T> GetEnumerator()
+        {
+            var e = enumerator;
+            e.siaqodb = query.Siaqodb;
+            var oids = query.GetFilteredOids();
 
-            if (oids == null)
-            {
-                oids = e.siaqodb.LoadAllOIDs<TSource>();
+            if (oids == null) oids = e.siaqodb.LoadAllOIDs<TSource>();
+            e.oids = oids;
 
-            }
-			e.oids = oids;
+            if (e == null) throw new InvalidOperationException("Cannot enumerate more than once");
 
-			if (e == null)
-			{
-				throw new InvalidOperationException("Cannot enumerate more than once");
-			}
+            //this.enumerator = null;
+            return e;
+        }
 
-			//this.enumerator = null;
-			return e;
-		}
-
-		IEnumerator IEnumerable.GetEnumerator()
-		{
-			return this.GetEnumerator();
-		}
-
-
-
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
 
 
         #region ISqoQuery<T> Members
@@ -91,7 +68,9 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Select(this, selector);
         }
 
-        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner, Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<T, TInner, TResult>> resultSelector)
+        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner,
+            Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector,
+            Expression<Func<T, TInner, TResult>> resultSelector)
         {
             return SqoQueryExtensionsImpl.Join(this, inner, outerKeySelector, innerKeySelector, resultSelector);
         }
@@ -281,7 +260,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Include(this, path);
         }
 
-		#if !UNITY3D  || XIOS
+#if !UNITY3D || XIOS
         public ISqoOrderedQuery<T> SqoOrderBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
             return SqoQueryExtensionsImpl.OrderBy(this, keySelector);
@@ -302,98 +281,78 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.ThenByDescending(this as ISqoOrderedQuery<T>, keySelector);
         }
 #endif
+
         #endregion
     }
-    class EnumeratorSelect<T> : ProjectionRow,  IEnumerator<T>, IEnumerator, IDisposable
+
+    internal class EnumeratorSelect<T> : ProjectionRow, IEnumerator<T>, IEnumerator, IDisposable
 #if ASYNC
-        ,ISqoAsyncEnumerator<T>
+        , ISqoAsyncEnumerator<T>
 #endif
     {
-        List<SqoColumn> columns;
-        T current;
-        internal Siaqodb siaqodb;
-        Func<ProjectionRow, T> projector;
-        internal List<int> oids;
-        int currentIndex = 0;
+        private readonly List<SqoColumn> columns;
 #if ASYNC
-        int currentColumnIndex = 0;
+        private int currentColumnIndex = 0;
 #endif
+        private int currentIndex;
+        internal List<int> oids;
+        private readonly Func<ProjectionRow, T> projector;
+        internal Siaqodb siaqodb;
+
         internal EnumeratorSelect(List<SqoColumn> columns, Func<ProjectionRow, T> projector)
         {
             this.columns = columns;
             this.projector = projector;
         }
-        public override object GetValue(int index)
-        {
 
-            SqoColumn col = columns[index];
-            if (col.IsFullObject)
-            {
-                return siaqodb.LoadObjectByOID(col.SourceType, oids[currentIndex]);
-            }
-            else
-            {
-                return siaqodb.LoadValue(oids[currentIndex], col.SourcePropName, col.SourceType);
-            }
+        public T Current { get; private set; }
 
-
-
-        }
-#if ASYNC
-        public async Task<object> GetValueAsync(int index)
-        {
-
-            SqoColumn col = columns[index];
-            if (col.IsFullObject)
-            {
-                return await siaqodb.LoadObjectByOIDAsync(col.SourceType, oids[currentIndex]);
-            }
-            else
-            {
-                return await siaqodb.LoadValueAsync(oids[currentIndex], col.SourcePropName, col.SourceType);
-            }
-        }
-#endif
-        public T Current
-        {
-            get { return this.current; }
-        }
-        object IEnumerator.Current
-        {
-            get { return this.current; }
-        }
+        object IEnumerator.Current => Current;
 
         public bool MoveNext()
         {
             //if (this.reader.Read())
             if (oids.Count > currentIndex)
             {
-                this.current = this.projector(this);
+                Current = projector(this);
                 currentIndex++;
                 return true;
             }
-            else
-            {
-                this.Reset();
-            }
+
+            Reset();
             return false;
         }
+
+        public void Reset()
+        {
+            currentIndex = 0;
+        }
+
+        public void Dispose()
+        {
+        }
 #if ASYNC
-       
+
         public async Task<bool> MoveNextAsync()
         {
             throw new SiaqodbException("Not supported async operation");
         }
 #endif
-        public void Reset()
+        public override object GetValue(int index)
         {
-            this.currentIndex = 0;
+            var col = columns[index];
+            if (col.IsFullObject)
+                return siaqodb.LoadObjectByOID(col.SourceType, oids[currentIndex]);
+            return siaqodb.LoadValue(oids[currentIndex], col.SourcePropName, col.SourceType);
         }
-        public void Dispose()
+#if ASYNC
+        public async Task<object> GetValueAsync(int index)
         {
-
+            var col = columns[index];
+            if (col.IsFullObject)
+                return await siaqodb.LoadObjectByOIDAsync(col.SourceType, oids[currentIndex]);
+            return await siaqodb.LoadValueAsync(oids[currentIndex], col.SourcePropName, col.SourceType);
         }
-
+#endif
     }
-
 }

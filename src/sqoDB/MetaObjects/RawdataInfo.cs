@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using sqoDB.Attributes;
+﻿using System.Reflection;
 
 namespace sqoDB.MetaObjects
 {
-    [System.Reflection.Obfuscation(Exclude = true)]
-    class RawdataInfo 
+    [Obfuscation(Exclude = true)]
+    internal class RawdataInfo
     {
         public int OID { get; set; }
-      
+
         public int Length;
         public int ElementLength;
         public long Position;
-       
+
         public bool IsFree;
 
 #if SILVERLIGHT

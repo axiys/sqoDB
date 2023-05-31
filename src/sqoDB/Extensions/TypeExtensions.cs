@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Reflection;
+
 namespace sqoDB
 {
-    static class  TypeExtensions
+    internal static class TypeExtensions
     {
 #if WinRT
         public static bool IsAssignableFrom(this Type type, Type fromType)
@@ -39,7 +36,7 @@ namespace sqoDB
         }
         public static PropertyInfo GetProperty(this Type type, string name)
         {
-            PropertyInfo pi= type.GetTypeInfo().GetDeclaredProperty(name);
+            PropertyInfo pi = type.GetTypeInfo().GetDeclaredProperty(name);
             if (pi == null)
             {
                 if (type.GetTypeInfo().BaseType != null)
@@ -76,10 +73,10 @@ namespace sqoDB
 
             foreach (ConstructorInfo ctor in type.GetTypeInfo().DeclaredConstructors)
             { 
-                ParameterInfo[] prinfos= ctor.GetParameters();
+                ParameterInfo[] prinfos = ctor.GetParameters();
                 if (prinfos.Length == types.Length)
                 {
-                    int ok=0;
+                    int ok = 0;
                     for (int i = 0; i < prinfos.Length;i++ )
                     {
                         if (prinfos[i].ParameterType == types[i])
@@ -114,15 +111,18 @@ namespace sqoDB
         {
             return type.IsGenericType;
         }
+
         public static bool IsEnum(this Type type)
         {
             return type.IsEnum;
         }
+
         public static bool IsClass(this Type type)
         {
             return type.IsClass;
         }
-        public static bool IsPrimitive(this Type type  )
+
+        public static bool IsPrimitive(this Type type)
         {
             return type.IsPrimitive;
         }
@@ -131,11 +131,11 @@ namespace sqoDB
 #if WinRT
     public enum BindingFlags
     { 
-        Instance=4,
-        Static=8,
-        Public=16,
-        NonPublic=32,
-        FlattenHierarchy=64
+        Instance = 4,
+        Static = 8,
+        Public = 16,
+        NonPublic = 32,
+        FlattenHierarchy = 64
     }
 #endif
 }

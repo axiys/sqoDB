@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace sqoDB
+﻿namespace sqoDB
 {
     public interface ISqoDataObject
     {
@@ -11,8 +6,7 @@ namespace sqoDB
 #if SILVERLIGHT
         object GetValue(System.Reflection.FieldInfo field);
         void SetValue(System.Reflection.FieldInfo field, object value);
-		
+
 #endif
-		
     }
 }

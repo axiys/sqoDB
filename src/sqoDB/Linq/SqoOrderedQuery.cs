@@ -1,9 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using sqoDB.Utilities;
 using System.Linq.Expressions;
+using sqoDB.Utilities;
 #if ASYNC
 using System.Threading.Tasks;
 
@@ -13,68 +13,65 @@ namespace sqoDB
 {
     public class SqoOrderedQuery<T> : ISqoOrderedQuery<T>
     {
-
-        internal List<SqoSortableItem> SortableItems { get; set; }
-        
-        internal Siaqodb siaqodb;
         internal SqoComparer<SqoSortableItem> comparer;
-        internal SqoOrderedQuery(Siaqodb siaqodb, List<SqoSortableItem> sortableItems,SqoComparer<SqoSortableItem> comparer)
+
+        internal Siaqodb siaqodb;
+
+        internal SqoOrderedQuery(Siaqodb siaqodb, List<SqoSortableItem> sortableItems,
+            SqoComparer<SqoSortableItem> comparer)
         {
-            this.SortableItems = sortableItems;
+            SortableItems = sortableItems;
             this.siaqodb = siaqodb;
             this.comparer = comparer;
         }
 
-        public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T, TKey> keySelector, IComparer<TKey> comparer, bool descending)
+        internal List<SqoSortableItem> SortableItems { get; set; }
+
+        public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T, TKey> keySelector, IComparer<TKey> comparer,
+            bool descending)
         {
             return this;
-        }
-
-        public List<int> SortAndGetOids()
-        {
-            this.SortableItems.Sort(this.comparer);
-
-            List<int> oids = new List<int>(this.SortableItems.Count);
-            foreach (SqoSortableItem item in this.SortableItems)
-            {
-                oids.Add(item.oid);
-            }
-            return oids;
         }
 
         #region IEnumerable<T> Members
 
         public IEnumerator<T> GetEnumerator()
         {
-            List<int> oids=this.SortAndGetOids();
-            return new LazyEnumerator<T>(this.siaqodb, oids);
-
+            var oids = SortAndGetOids();
+            return new LazyEnumerator<T>(siaqodb, oids);
         }
 
         #endregion
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-            return (IEnumerator<T>)this.GetEnumerator();
+            return GetEnumerator();
         }
 
         #endregion
+
 #if ASYNC
         public async Task<IList<T>> ToListAsync()
         {
-            List<int> oids = this.SortAndGetOids();
-            
+            var oids = SortAndGetOids();
+
             IObjectList<T> list = new ObjectList<T>();
-            ISqoAsyncEnumerator<T> asyncEnum = new LazyEnumerator<T>(this.siaqodb, oids);
-            while (await asyncEnum.MoveNextAsync())
-            {
-                list.Add(asyncEnum.Current);
-            }
+            ISqoAsyncEnumerator<T> asyncEnum = new LazyEnumerator<T>(siaqodb, oids);
+            while (await asyncEnum.MoveNextAsync()) list.Add(asyncEnum.Current);
             return list;
         }
 #endif
+
+        public List<int> SortAndGetOids()
+        {
+            SortableItems.Sort(comparer);
+
+            var oids = new List<int>(SortableItems.Count);
+            foreach (var item in SortableItems) oids.Add(item.oid);
+            return oids;
+        }
 
         #region ISqoQuery<T> Members
 
@@ -88,7 +85,9 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Select(this, selector);
         }
 
-        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner, Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<T, TInner, TResult>> resultSelector)
+        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner,
+            Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector,
+            Expression<Func<T, TInner, TResult>> resultSelector)
         {
             return SqoQueryExtensionsImpl.Join(this, inner, outerKeySelector, innerKeySelector, resultSelector);
         }
@@ -278,7 +277,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Include(this, path);
         }
 
-		#if !UNITY3D  || XIOS
+#if !UNITY3D || XIOS
         public ISqoOrderedQuery<T> SqoOrderBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
             return SqoQueryExtensionsImpl.OrderBy(this, keySelector);
@@ -291,24 +290,27 @@ namespace sqoDB
 
         public ISqoOrderedQuery<T> SqoThenBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
-            return SqoQueryExtensionsImpl.ThenBy(this as ISqoOrderedQuery<T>, keySelector);
+            return SqoQueryExtensionsImpl.ThenBy(this, keySelector);
         }
 
         public ISqoOrderedQuery<T> SqoThenByDescending<TKey>(Expression<Func<T, TKey>> keySelector)
         {
-            return SqoQueryExtensionsImpl.ThenByDescending(this as ISqoOrderedQuery<T>, keySelector);
+            return SqoQueryExtensionsImpl.ThenByDescending(this, keySelector);
         }
 #endif
+
         #endregion
     }
+
     public class SqoObjOrderedQuery<T> : ISqoOrderedQuery<T>
     {
+        private readonly IOrderedEnumerable<T> query;
 
-        IOrderedEnumerable<T> query;
         internal SqoObjOrderedQuery(IOrderedEnumerable<T> query)
         {
             this.query = query;
         }
+
         #region IEnumerable<T> Members
 
         public IEnumerator<T> GetEnumerator()
@@ -320,7 +322,7 @@ namespace sqoDB
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return query.GetEnumerator();
         }
@@ -329,24 +331,21 @@ namespace sqoDB
 
         #region IOrderedEnumerable<T> Members
 
-        public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T, TKey> keySelector, IComparer<TKey> comparer, bool descending)
+        public IOrderedEnumerable<T> CreateOrderedEnumerable<TKey>(Func<T, TKey> keySelector, IComparer<TKey> comparer,
+            bool descending)
         {
-            return query.CreateOrderedEnumerable<TKey>(keySelector, comparer, descending);
+            return query.CreateOrderedEnumerable(keySelector, comparer, descending);
         }
 
         #endregion
+
 #if ASYNC
         public async Task<IList<T>> ToListAsync()
         {
-            ISqoOrderedQuery<T> querya = this.query as ISqoOrderedQuery<T>;
+            var querya = query as ISqoOrderedQuery<T>;
             if (querya != null)
-            {
                 return await querya.ToListAsync();
-            }
-            else
-            {
-                return this.query.ToList();
-            }
+            return query.ToList();
         }
 #endif
 
@@ -362,7 +361,9 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Select(this, selector);
         }
 
-        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner, Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<T, TInner, TResult>> resultSelector)
+        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner,
+            Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector,
+            Expression<Func<T, TInner, TResult>> resultSelector)
         {
             return SqoQueryExtensionsImpl.Join(this, inner, outerKeySelector, innerKeySelector, resultSelector);
         }
@@ -552,7 +553,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Include(this, path);
         }
 
-		#if !UNITY3D  || XIOS
+#if !UNITY3D || XIOS
         public ISqoOrderedQuery<T> SqoOrderBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
             return SqoQueryExtensionsImpl.OrderBy(this, keySelector);
@@ -565,15 +566,15 @@ namespace sqoDB
 
         public ISqoOrderedQuery<T> SqoThenBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
-            return SqoQueryExtensionsImpl.ThenBy(this as ISqoOrderedQuery<T>, keySelector);
+            return SqoQueryExtensionsImpl.ThenBy(this, keySelector);
         }
 
         public ISqoOrderedQuery<T> SqoThenByDescending<TKey>(Expression<Func<T, TKey>> keySelector)
         {
-            return SqoQueryExtensionsImpl.ThenByDescending(this as ISqoOrderedQuery<T>, keySelector);
+            return SqoQueryExtensionsImpl.ThenByDescending(this, keySelector);
         }
 #endif
+
         #endregion
     }
-    
 }

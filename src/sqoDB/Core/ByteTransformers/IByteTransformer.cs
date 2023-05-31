@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-#if ASYNC
+﻿#if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB.Core
 {
-    interface IByteTransformer
+    internal interface IByteTransformer
     {
         byte[] GetBytes(object obj);
         object GetObject(byte[] bytes);

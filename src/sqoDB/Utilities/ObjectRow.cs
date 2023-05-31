@@ -1,43 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace sqoDB.Utilities
+﻿namespace sqoDB.Utilities
 {
-    internal class ObjectRow 
+    internal class ObjectRow
     {
         internal object[] cells;
-        ObjectTable table;
+        private readonly ObjectTable table;
+
         public ObjectRow(ObjectTable table)
         {
-            this.table=table;
-            this.cells = new object[table.Columns.Count];
+            this.table = table;
+            cells = new object[table.Columns.Count];
         }
+
         public object this[string name]
         {
-            get
-            {
-                
-
-                return cells[table.Columns[name]];
-            }
-            set
-            {
-
-                cells[table.Columns[name]] = value;
-            }
+            get => cells[table.Columns[name]];
+            set => cells[table.Columns[name]] = value;
         }
+
         public object this[int index]
         {
-            get
-            {
-                return cells[index];
-            }
-            set
-            {
-                cells[index] = value;
-            }
+            get => cells[index];
+            set => cells[index] = value;
         }
     }
 }

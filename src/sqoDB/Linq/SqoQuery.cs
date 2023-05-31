@@ -1,8 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
 using System.Linq.Expressions;
 #if ASYNC
 using System.Threading.Tasks;
@@ -10,106 +8,37 @@ using System.Threading.Tasks;
 
 namespace sqoDB
 {
-    #if KEVAST
+#if KEVAST
     internal
 #else
-        public
+    public
 #endif
-        class SqoQuery<T>: ISqoQuery<T>
+        class SqoQuery<T> : ISqoQuery<T>
     {
-        Siaqodb siaqodb;
-        Expression expression;
-        public Expression Expression { get { return expression; } set { expression = value; } }
+        private List<int> oidsList;
+        private IObjectList<T> oList;
+
         public SqoQuery(Siaqodb siaqodb)
         {
-            this.siaqodb = siaqodb;
-            
+            Siaqodb = siaqodb;
         }
-        public Siaqodb Siaqodb { get { return siaqodb; } }
-        private IObjectList<T> oList;
-        private List<int> oidsList;
-        public List<int> GetFilteredOids()
-        {
-            if (expression == null)
-                return null;
-            else
-            {
-                return siaqodb.LoadOids<T>(this.expression);
-            }
-        }
-#if ASYNC
-        public async Task<List<int>> GetFilteredOidsAsync()
-        {
-            if (expression == null)
-                return null;
-            else
-            {
-                return await siaqodb.LoadOidsAsync<T>(this.expression);
-            }
-        }
-#endif
-        public int CountOids()
-        {
-            if (expression == null)
-            {
-                return siaqodb.Count<T>();
-            }
-            else
-            {
-                return siaqodb.LoadOids<T>(this.expression).Count;
-            }
-        }
-#if ASYNC
-        public async Task<int> CountOidsAsync()
-        {
-            if (expression == null)
-            {
-                return await siaqodb.CountAsync<T>();
-            }
-            else
-            {
-                List<int> list = await siaqodb.LoadOidsAsync<T>(this.expression);
-                return list.Count;
-            }
-        }
-        public async Task<IList<T>> ToListAsync()
-        {
-            if (oList == null)
-            {
-                if (expression == null)
-                {
-                    oList = await siaqodb.LoadAllAsync<T>();
 
-                }
-                else
-                {
-                    oList = await siaqodb.LoadAsync<T>(this.expression);
+        public Expression Expression { get; set; }
 
-                }
-            }
-            return oList;
-        }
-#endif
+        public Siaqodb Siaqodb { get; }
 
         #region IEnumerable<T> Members
 
         public IEnumerator<T> GetEnumerator()
         {
-           
-           
-                if (oList == null)
-                {
-                    if (expression == null)
-                    {
-                        oList = siaqodb.LoadAll<T>();
-                        
-                    }
-                    else
-                    {
-                        oList = siaqodb.Load<T>(this.expression);
-                    }
-                }
-            
+            if (oList == null)
+            {
+                if (Expression == null)
+                    oList = Siaqodb.LoadAll<T>();
+                else
+                    oList = Siaqodb.Load<T>(Expression);
+            }
+
             return oList.GetEnumerator();
         }
 
@@ -117,129 +46,128 @@ namespace sqoDB
 
         #region IEnumerable Members
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
-			return (IEnumerator < T > )this.GetEnumerator();
+            return GetEnumerator();
         }
 
         #endregion
+
+        public List<int> GetFilteredOids()
+        {
+            if (Expression == null)
+                return null;
+            return Siaqodb.LoadOids<T>(Expression);
+        }
+#if ASYNC
+        public async Task<List<int>> GetFilteredOidsAsync()
+        {
+            if (Expression == null)
+                return null;
+            return await Siaqodb.LoadOidsAsync<T>(Expression);
+        }
+#endif
+        public int CountOids()
+        {
+            if (Expression == null)
+                return Siaqodb.Count<T>();
+            return Siaqodb.LoadOids<T>(Expression).Count;
+        }
 
         public LazyEnumerator<T> GetLazyEnumerator()
         {
             if (oidsList == null)
             {
-                if (expression == null)
-                {
-                    oidsList = siaqodb.LoadAllOIDs<T>();
-
-                }
+                if (Expression == null)
+                    oidsList = Siaqodb.LoadAllOIDs<T>();
                 else
-                {
-                    oidsList = siaqodb.LoadOids<T>(this.expression);
-                }
+                    oidsList = Siaqodb.LoadOids<T>(Expression);
             }
-            return new LazyEnumerator<T>(this.siaqodb, oidsList);
-            
+
+            return new LazyEnumerator<T>(Siaqodb, oidsList);
         }
 #if ASYNC
         public async Task<LazyEnumerator<T>> GetLazyEnumeratorAsync()
         {
             if (oidsList == null)
             {
-                if (expression == null)
-                {
-                    oidsList = await siaqodb.LoadAllOIDsAsync<T>();
-
-                }
+                if (Expression == null)
+                    oidsList = await Siaqodb.LoadAllOIDsAsync<T>();
                 else
-                {
-                    oidsList = await siaqodb.LoadOidsAsync<T>(this.expression);
-                }
+                    oidsList = await Siaqodb.LoadOidsAsync<T>(Expression);
             }
-            return new LazyEnumerator<T>(this.siaqodb, oidsList);
 
+            return new LazyEnumerator<T>(Siaqodb, oidsList);
         }
 #endif
         public T GetLast(bool throwExce)
         {
             if (oidsList == null)
             {
-                if (expression == null)
-                {
-                    oidsList = siaqodb.LoadAllOIDs<T>();
+                if (Expression == null)
+                    oidsList = Siaqodb.LoadAllOIDs<T>();
+                else
+                    oidsList = Siaqodb.LoadOids<T>(Expression);
+            }
 
-                }
-                else
-                {
-                    oidsList = siaqodb.LoadOids<T>(this.expression);
-                }
-            }
-            if (oidsList.Count > 0)
-            {
-                return siaqodb.LoadObjectByOID<T>(oidsList[oidsList.Count - 1]);
-            }
-            else
-            {
-                if (throwExce)
-                {
-                    throw new InvalidOperationException("no match found");
-                }
-                else
-                {
-                    return default(T);
-                }
-            }
+            if (oidsList.Count > 0) return Siaqodb.LoadObjectByOID<T>(oidsList[oidsList.Count - 1]);
+
+            if (throwExce)
+                throw new InvalidOperationException("no match found");
+            return default;
         }
 #if ASYNC
         public async Task<T> GetLastAsync(bool throwExce)
         {
             if (oidsList == null)
             {
-                if (expression == null)
-                {
-                    oidsList = await siaqodb.LoadAllOIDsAsync<T>();
+                if (Expression == null)
+                    oidsList = await Siaqodb.LoadAllOIDsAsync<T>();
+                else
+                    oidsList = await Siaqodb.LoadOidsAsync<T>(Expression);
+            }
 
-                }
-                else
-                {
-                    oidsList = await siaqodb.LoadOidsAsync<T>(this.expression);
-                }
-            }
-            if (oidsList.Count > 0)
-            {
-                return await siaqodb.LoadObjectByOIDAsync<T>(oidsList[oidsList.Count - 1]);
-            }
-            else
-            {
-                if (throwExce)
-                {
-                    throw new InvalidOperationException("no match found");
-                }
-                else
-                {
-                    return default(T);
-                }
-            }
+            if (oidsList.Count > 0) return await Siaqodb.LoadObjectByOIDAsync<T>(oidsList[oidsList.Count - 1]);
+
+            if (throwExce)
+                throw new InvalidOperationException("no match found");
+            return default;
         }
 #endif
         public List<int> GetOids()
         {
-            if (expression == null)
-                return siaqodb.LoadAllOIDs<T>();
-            else
-            {
-                return siaqodb.LoadOids<T>(this.expression);
-            }
+            if (Expression == null)
+                return Siaqodb.LoadAllOIDs<T>();
+            return Siaqodb.LoadOids<T>(Expression);
         }
 #if ASYNC
         public async Task<List<int>> GetOidsAsync()
         {
-            if (expression == null)
-                return await siaqodb.LoadAllOIDsAsync<T>();
-            else
+            if (Expression == null)
+                return await Siaqodb.LoadAllOIDsAsync<T>();
+            return await Siaqodb.LoadOidsAsync<T>(Expression);
+        }
+#endif
+#if ASYNC
+        public async Task<int> CountOidsAsync()
+        {
+            if (Expression == null) return await Siaqodb.CountAsync<T>();
+
+            var list = await Siaqodb.LoadOidsAsync<T>(Expression);
+            return list.Count;
+        }
+
+        public async Task<IList<T>> ToListAsync()
+        {
+            if (oList == null)
             {
-                return await siaqodb.LoadOidsAsync<T>(this.expression);
+                if (Expression == null)
+                    oList = await Siaqodb.LoadAllAsync<T>();
+                else
+                    oList = await Siaqodb.LoadAsync<T>(Expression);
             }
+
+            return oList;
         }
 #endif
 
@@ -256,7 +184,9 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Select(this, selector);
         }
 
-        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner, Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, Expression<Func<T, TInner, TResult>> resultSelector)
+        public ISqoQuery<TResult> SqoJoin<TInner, TKey, TResult>(IEnumerable<TInner> inner,
+            Expression<Func<T, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector,
+            Expression<Func<T, TInner, TResult>> resultSelector)
         {
             return SqoQueryExtensionsImpl.Join(this, inner, outerKeySelector, innerKeySelector, resultSelector);
         }
@@ -446,7 +376,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.Include(this, path);
         }
 
-		#if !UNITY3D  || XIOS
+#if !UNITY3D || XIOS
         public ISqoOrderedQuery<T> SqoOrderBy<TKey>(Expression<Func<T, TKey>> keySelector)
         {
             return SqoQueryExtensionsImpl.OrderBy(this, keySelector);
@@ -467,7 +397,7 @@ namespace sqoDB
             return SqoQueryExtensionsImpl.ThenByDescending(this as ISqoOrderedQuery<T>, keySelector);
         }
 #endif
+
         #endregion
     }
-    
 }

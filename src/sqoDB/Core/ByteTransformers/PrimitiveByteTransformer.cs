@@ -1,20 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using sqoDB.Meta;
+﻿using sqoDB.Meta;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
+
 namespace sqoDB.Core
 {
-    class PrimitiveByteTransformer:IByteTransformer
+    internal class PrimitiveByteTransformer : IByteTransformer
     {
-        FieldSqoInfo fi;
-        SqoTypeInfo ti;
-        public PrimitiveByteTransformer(FieldSqoInfo fi,SqoTypeInfo ti)
+        private readonly FieldSqoInfo fi;
+        private readonly SqoTypeInfo ti;
+
+        public PrimitiveByteTransformer(FieldSqoInfo fi, SqoTypeInfo ti)
         {
-            this.fi=fi;
+            this.fi = fi;
             this.ti = ti;
         }
 
@@ -22,7 +20,8 @@ namespace sqoDB.Core
 
         public byte[] GetBytes(object obj)
         {
-            return ByteConverter.SerializeValueType(obj, fi.AttributeType, fi.Header.Length, fi.Header.RealLength, ti.Header.version);
+            return ByteConverter.SerializeValueType(obj, fi.AttributeType, fi.Header.Length, fi.Header.RealLength,
+                ti.Header.version);
         }
 
         public object GetObject(byte[] bytes)
@@ -30,12 +29,12 @@ namespace sqoDB.Core
             return ByteConverter.DeserializeValueType(fi.AttributeType, bytes, true, ti.Header.version);
         }
 
-        
 
 #if ASYNC
         public async Task<byte[]> GetBytesAsync(object obj)
         {
-            return ByteConverter.SerializeValueType(obj, fi.AttributeType, fi.Header.Length, fi.Header.RealLength, ti.Header.version);
+            return ByteConverter.SerializeValueType(obj, fi.AttributeType, fi.Header.Length, fi.Header.RealLength,
+                ti.Header.version);
         }
 
         public async Task<object> GetObjectAsync(byte[] bytes)
@@ -43,6 +42,7 @@ namespace sqoDB.Core
             return ByteConverter.DeserializeValueType(fi.AttributeType, bytes, true, ti.Header.version);
         }
 #endif
+
         #endregion
     }
 }

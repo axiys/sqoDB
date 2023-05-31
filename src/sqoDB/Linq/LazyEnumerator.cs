@@ -1,8 +1,5 @@
-﻿using System;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Collections;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
@@ -12,36 +9,35 @@ namespace sqoDB
 #if KEVAST
     internal
 #else
-        public
+    public
 #endif
-    class LazyEnumerator<T> : IEnumerator<T>, IEnumerator
+        class LazyEnumerator<T> : IEnumerator<T>, IEnumerator
 #if ASYNC
-            ,ISqoAsyncEnumerator<T>
+            , ISqoAsyncEnumerator<T>
 #endif
     {
+        private int currentIndex;
+        private readonly List<int> oids;
+        private readonly List<string> propertiesIncluded;
 
-        private Siaqodb siaqodb;
-        private List<int> oids;
-        private List<string> propertiesIncluded;
-        T current;
-        int currentIndex = 0;
-        public LazyEnumerator(Siaqodb siaqodb,List<int> oids)
+        private readonly Siaqodb siaqodb;
+
+        public LazyEnumerator(Siaqodb siaqodb, List<int> oids)
         {
             this.siaqodb = siaqodb;
             this.oids = oids;
         }
-        public LazyEnumerator(Siaqodb siaqodb, List<int> oids,List<string> includes)
+
+        public LazyEnumerator(Siaqodb siaqodb, List<int> oids, List<string> includes)
         {
             this.siaqodb = siaqodb;
             this.oids = oids;
-            this.propertiesIncluded = includes;
+            propertiesIncluded = includes;
         }
+
         #region IEnumerator<T> Members
 
-        public T Current
-        {
-            get { return this.current; }
-        }
+        public T Current { get; private set; }
 
         #endregion
 
@@ -49,43 +45,6 @@ namespace sqoDB
 
         public void Dispose()
         {
-            
-        }
-
-        #endregion
-
-        #region IEnumerator Members
-
-        object IEnumerator.Current
-        {
-            get { return this.current; }
-        }
-
-        public bool MoveNext()
-        {
-            if (oids.Count > currentIndex)
-            {
-                if (propertiesIncluded == null)
-                {
-                    this.current = siaqodb.LoadObjectByOID<T>(oids[currentIndex]);
-                }
-                else
-                {
-                    this.current = siaqodb.LoadObjectByOID<T>(oids[currentIndex], this.propertiesIncluded);
-                }
-                currentIndex++;
-                return true;
-            }
-            else
-            {
-                Reset();
-            }
-            return false;
-        }
-
-        public void Reset()
-        {
-            this.currentIndex = 0;
         }
 
         #endregion
@@ -96,31 +55,52 @@ namespace sqoDB
             if (oids.Count > currentIndex)
             {
                 if (propertiesIncluded == null)
-                {
-                    this.current = await siaqodb.LoadObjectByOIDAsync<T>(oids[currentIndex]);
-                }
+                    Current = await siaqodb.LoadObjectByOIDAsync<T>(oids[currentIndex]);
                 else
-                {
-                    this.current = await siaqodb.LoadObjectByOIDAsync<T>(oids[currentIndex], this.propertiesIncluded);
-                }
+                    Current = await siaqodb.LoadObjectByOIDAsync<T>(oids[currentIndex], propertiesIncluded);
                 currentIndex++;
                 return true;
             }
-            else
-            {
-                Reset();
-            }
+
+            Reset();
             return false;
         }
 #endif
-    }
-#if ASYNC    
-        public interface ISqoAsyncEnumerator<T>:IEnumerator<T>
-        {
-            T Current { get; }
 
-            Task<bool> MoveNextAsync();
-            void Reset();
+        #region IEnumerator Members
+
+        object IEnumerator.Current => Current;
+
+        public bool MoveNext()
+        {
+            if (oids.Count > currentIndex)
+            {
+                if (propertiesIncluded == null)
+                    Current = siaqodb.LoadObjectByOID<T>(oids[currentIndex]);
+                else
+                    Current = siaqodb.LoadObjectByOID<T>(oids[currentIndex], propertiesIncluded);
+                currentIndex++;
+                return true;
+            }
+
+            Reset();
+            return false;
         }
+
+        public void Reset()
+        {
+            currentIndex = 0;
+        }
+
+        #endregion
+    }
+#if ASYNC
+    public interface ISqoAsyncEnumerator<T> : IEnumerator<T>
+    {
+        T Current { get; }
+
+        Task<bool> MoveNextAsync();
+        void Reset();
+    }
 #endif
 }

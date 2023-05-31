@@ -1,10 +1,7 @@
 ﻿using System;
-    using System.Reflection;
-    using System.Reflection.Emit;
-
-    using Mono.Reflection;
-using System.Diagnostics;
-
+using System.Reflection;
+using System.Reflection.Emit;
+using Mono.Reflection;
 
 namespace sqoDB.PropertyResolver
 {
@@ -37,9 +34,8 @@ namespace sqoDB.PropertyResolver
     //
 
 
-    abstract class ILPattern
+    internal abstract class ILPattern
     {
-
         public static ILPattern Optional(OpCode opcode)
         {
             return Optional(OpCode(opcode));
@@ -50,47 +46,9 @@ namespace sqoDB.PropertyResolver
             return new OptionalPattern(pattern);
         }
 
-        class OptionalPattern : ILPattern
-        {
-
-            ILPattern pattern;
-
-            public OptionalPattern(ILPattern optional)
-            {
-                this.pattern = optional;
-            }
-
-            internal override void Match(MatchContext context)
-            {
-                pattern.TryMatch(context);
-            }
-        }
-
         public static ILPattern Sequence(params ILPattern[] patterns)
         {
             return new SequencePattern(patterns);
-        }
-
-        class SequencePattern : ILPattern
-        {
-
-            ILPattern[] patterns;
-
-            public SequencePattern(ILPattern[] patterns)
-            {
-                this.patterns = patterns;
-            }
-
-            internal override void Match(MatchContext context)
-            {
-                foreach (var pattern in patterns)
-                {
-                    pattern.Match(context);
-
-                    if (!context.success)
-                        break;
-                }
-            }
         }
 
         public static ILPattern OpCode(OpCode opcode)
@@ -98,78 +56,14 @@ namespace sqoDB.PropertyResolver
             return new OpCodePattern(opcode);
         }
 
-        class OpCodePattern : ILPattern
-        {
-
-            OpCode opcode;
-
-            public OpCodePattern(OpCode opcode)
-            {
-                this.opcode = opcode;
-            }
-
-            internal override void Match(MatchContext context)
-            {
-                if (context.instruction == null)
-                {
-                    context.success = false;
-                    return;
-                }
-
-                context.success = context.instruction.OpCode == opcode;
-                context.Advance();
-            }
-        }
-
         public static ILPattern Either(ILPattern a, ILPattern b)
         {
             return new EitherPattern(a, b);
         }
 
-        class EitherPattern : ILPattern
-        {
-
-            ILPattern a;
-            ILPattern b;
-
-            public EitherPattern(ILPattern a, ILPattern b)
-            {
-                this.a = a;
-                this.b = b;
-            }
-
-            internal override void Match(MatchContext context)
-            {
-                if (!a.TryMatch(context))
-                    b.Match(context);
-            }
-        }
-
         public static ILPattern Field(OpCode opcode)
         {
             return new FieldPattern(new OpCodePattern(opcode));
-        }
-
-        class FieldPattern : ILPattern
-        {
-
-            ILPattern pattern;
-
-            public FieldPattern(ILPattern pattern)
-            {
-                this.pattern = pattern;
-            }
-
-            internal override void Match(MatchContext context)
-            {
-                if (!pattern.TryMatch(context))
-                {
-                    context.success = false;
-                    return;
-                }
-
-                context.field = (FieldInfo)context.instruction.Previous.Operand;
-            }
         }
 
         internal abstract void Match(MatchContext context);
@@ -196,14 +90,111 @@ namespace sqoDB.PropertyResolver
             pattern.Match(context);
             return context;
         }
+
+        private class OptionalPattern : ILPattern
+        {
+            private readonly ILPattern pattern;
+
+            public OptionalPattern(ILPattern optional)
+            {
+                pattern = optional;
+            }
+
+            internal override void Match(MatchContext context)
+            {
+                pattern.TryMatch(context);
+            }
+        }
+
+        private class SequencePattern : ILPattern
+        {
+            private readonly ILPattern[] patterns;
+
+            public SequencePattern(ILPattern[] patterns)
+            {
+                this.patterns = patterns;
+            }
+
+            internal override void Match(MatchContext context)
+            {
+                foreach (var pattern in patterns)
+                {
+                    pattern.Match(context);
+
+                    if (!context.success)
+                        break;
+                }
+            }
+        }
+
+        private class OpCodePattern : ILPattern
+        {
+            private readonly OpCode opcode;
+
+            public OpCodePattern(OpCode opcode)
+            {
+                this.opcode = opcode;
+            }
+
+            internal override void Match(MatchContext context)
+            {
+                if (context.instruction == null)
+                {
+                    context.success = false;
+                    return;
+                }
+
+                context.success = context.instruction.OpCode == opcode;
+                context.Advance();
+            }
+        }
+
+        private class EitherPattern : ILPattern
+        {
+            private readonly ILPattern a;
+            private readonly ILPattern b;
+
+            public EitherPattern(ILPattern a, ILPattern b)
+            {
+                this.a = a;
+                this.b = b;
+            }
+
+            internal override void Match(MatchContext context)
+            {
+                if (!a.TryMatch(context))
+                    b.Match(context);
+            }
+        }
+
+        private class FieldPattern : ILPattern
+        {
+            private readonly ILPattern pattern;
+
+            public FieldPattern(ILPattern pattern)
+            {
+                this.pattern = pattern;
+            }
+
+            internal override void Match(MatchContext context)
+            {
+                if (!pattern.TryMatch(context))
+                {
+                    context.success = false;
+                    return;
+                }
+
+                context.field = (FieldInfo)context.instruction.Previous.Operand;
+            }
+        }
     }
 
-    class MatchContext
+    internal class MatchContext
     {
+        internal FieldInfo field;
 
         internal Instruction instruction;
         internal bool success;
-        internal FieldInfo field;
 
         public MatchContext(Instruction instruction)
         {
@@ -213,19 +204,18 @@ namespace sqoDB.PropertyResolver
         public void Reset(Instruction instruction)
         {
             this.instruction = instruction;
-            this.success = true;
+            success = true;
         }
 
         public void Advance()
         {
-            this.instruction = this.instruction.Next;
+            instruction = instruction.Next;
         }
     }
 
-    class BackingFieldResolver
+    internal class BackingFieldResolver
     {
-
-        static ILPattern GetterPattern =
+        private static readonly ILPattern GetterPattern =
             ILPattern.Sequence(
                 ILPattern.Optional(OpCodes.Nop),
                 ILPattern.Either(
@@ -240,7 +230,7 @@ namespace sqoDB.PropertyResolver
                         ILPattern.OpCode(OpCodes.Ldloc_0))),
                 ILPattern.OpCode(OpCodes.Ret));
 
-        static ILPattern SetterPattern =
+        private static readonly ILPattern SetterPattern =
             ILPattern.Sequence(
                 ILPattern.Optional(OpCodes.Nop),
                 ILPattern.OpCode(OpCodes.Ldarg_0),
@@ -251,19 +241,19 @@ namespace sqoDB.PropertyResolver
                         ILPattern.Field(OpCodes.Stfld))),
                 ILPattern.OpCode(OpCodes.Ret));
 
-        static FieldInfo GetBackingField(MethodInfo method, ILPattern pattern)
+        private static FieldInfo GetBackingField(MethodInfo method, ILPattern pattern)
         {
             //Debug.WriteLine("Enter on Reflection.EMIT and works!");
             var result = ILPattern.Match(method, pattern);
             if (!result.success)
                 throw new NotSupportedException();
-           // Debug.WriteLine("Exit on Reflection.EMIT and works!");
+            // Debug.WriteLine("Exit on Reflection.EMIT and works!");
             return result.field;
         }
 
         public static FieldInfo GetBackingField(PropertyInfo self)
         {
-           //Debug.WriteLine("Enter on Reflection.EMIT and works!");
+            //Debug.WriteLine("Enter on Reflection.EMIT and works!");
             var getter = self.GetGetMethod(true);
             if (getter != null)
                 return GetBackingField(getter, GetterPattern);
@@ -274,6 +264,5 @@ namespace sqoDB.PropertyResolver
 
             throw new ArgumentException();
         }
-
     }
 }

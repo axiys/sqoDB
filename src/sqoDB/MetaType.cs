@@ -1,29 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace sqoDB
 {
-	/// <summary>
-	/// Class that describe Type of objects  stored in database
-	/// </summary>
+    /// <summary>
+    ///     Class that describe Type of objects  stored in database
+    /// </summary>
     public class MetaType
-	{
+    {
         /// <summary>
-        /// Name of Type stored in database
+        ///     Name of Type stored in database
         /// </summary>
-		public string Name { get; set; }
+        public string Name { get; set; }
 
-       
-		List<MetaField> list=new List<MetaField>();
         /// <summary>
-        /// List of fields
+        ///     List of fields
         /// </summary>
-		public List<MetaField> Fields { get { return list; } }
+        public List<MetaField> Fields { get; } = new List<MetaField>();
 
         public string FileName { get; set; }
 
         public int TypeID { get; set; }
-	}
+    }
 }

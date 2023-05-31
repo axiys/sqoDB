@@ -1,74 +1,44 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Reflection;
 
 namespace sqoDB.Meta
 {
-	class FieldSqoInfo
-	{
-		
-		int attTypeId;
-        Type attType;
-		public FieldSqoInfo(int attTypeId,Type attType)
-		{
-
+    internal class FieldSqoInfo
+    {
+        public FieldSqoInfo(int attTypeId, Type attType)
+        {
             if (attType.IsEnum())
             {
-                Type enumType = Enum.GetUnderlyingType(attType);
-                this.attType = enumType;
+                var enumType = Enum.GetUnderlyingType(attType);
+                AttributeType = enumType;
             }
             else
             {
-                this.attType = attType;
+                AttributeType = attType;
             }
-            this.attTypeId=attTypeId;
-            
-		}
-        public FieldSqoInfo( Type attType)
-        {
-            this.attType = attType;
+
+            AttributeTypeId = attTypeId;
         }
+
+        public FieldSqoInfo(Type attType)
+        {
+            AttributeType = attType;
+        }
+
         public FieldSqoInfo()
         {
-
-        }
-		public int AttributeTypeId
-		{
-			get { return attTypeId; }
-            set { attTypeId = value; }
-		}
-
-        public Type AttributeType
-		{
-            get { return attType; }
-            set { attType = value; }
         }
 
-        string name;
-        public string Name
-        {
-            get { return name; }
-            set { name = value; }
-        }
-        FieldInfo fi;
-        public FieldInfo FInfo 
-        {
-            get{return fi;}
-            set { fi = value; }
-        }
-        private AttributeHeader header=new AttributeHeader();
-        public AttributeHeader Header
-        {
-            get { return header; }
-           
-        }
-        bool isText;
-        public bool IsText
-        {
-            get { return isText; }
-            set { this.isText = value; }
-        }
+        public int AttributeTypeId { get; set; }
 
-	}
+        public Type AttributeType { get; set; }
+
+        public string Name { get; set; }
+
+        public FieldInfo FInfo { get; set; }
+
+        public AttributeHeader Header { get; } = new AttributeHeader();
+
+        public bool IsText { get; set; }
+    }
 }

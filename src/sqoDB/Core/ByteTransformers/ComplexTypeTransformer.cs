@@ -1,20 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using sqoDB.Meta;
+﻿using sqoDB.Meta;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
 
 namespace sqoDB.Core
 {
-    class ComplexTypeTransformer:IByteTransformer
+    internal class ComplexTypeTransformer : IByteTransformer
     {
-        ObjectSerializer serializer;
-        SqoTypeInfo ti;
-        FieldSqoInfo fi;
-        public ComplexTypeTransformer(ObjectSerializer serializer,SqoTypeInfo ti,FieldSqoInfo fi)
+        private readonly FieldSqoInfo fi;
+        private readonly ObjectSerializer serializer;
+        private readonly SqoTypeInfo ti;
+
+        public ComplexTypeTransformer(ObjectSerializer serializer, SqoTypeInfo ti, FieldSqoInfo fi)
         {
             this.serializer = serializer;
             this.fi = fi;
@@ -26,24 +23,25 @@ namespace sqoDB.Core
 
         public byte[] GetBytes(object obj)
         {
-            return this.serializer.GetComplexObjectBytes(obj);
+            return serializer.GetComplexObjectBytes(obj);
         }
 
         public object GetObject(byte[] bytes)
         {
-            return this.serializer.ReadComplexObject(bytes, ti.Type, fi.Name);
+            return serializer.ReadComplexObject(bytes, ti.Type, fi.Name);
         }
 #if ASYNC
         public async Task<byte[]> GetBytesAsync(object obj)
         {
-            return await this.serializer.GetComplexObjectBytesAsync(obj).ConfigureAwait(false);
+            return await serializer.GetComplexObjectBytesAsync(obj).ConfigureAwait(false);
         }
 
         public async Task<object> GetObjectAsync(byte[] bytes)
         {
-            return await this.serializer.ReadComplexObjectAsync(bytes, ti.Type, fi.Name).ConfigureAwait(false);
+            return await serializer.ReadComplexObjectAsync(bytes, ti.Type, fi.Name).ConfigureAwait(false);
         }
 #endif
+
         #endregion
     }
 }

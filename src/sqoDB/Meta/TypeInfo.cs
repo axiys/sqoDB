@@ -1,122 +1,107 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
+using sqoDB.Indexes;
+using sqoDB.MetaObjects;
 
 namespace sqoDB.Meta
 {
+    internal class SqoTypeInfo
+    {
+        public List<FieldSqoInfo> Fields = new List<FieldSqoInfo>();
 
-	
-	class SqoTypeInfo
-	{
-		Type type;
-		public SqoTypeInfo(Type type)
-		{
-            if (type == typeof(sqoDB.MetaObjects.RawdataInfo))
+        public List<FieldSqoInfo> IndexedFields = new List<FieldSqoInfo>();
+
+        public bool IsOld;
+        private string typeName;
+        public List<FieldSqoInfo> UniqueFields = new List<FieldSqoInfo>();
+
+        public SqoTypeInfo(Type type)
+        {
+            if (type == typeof(RawdataInfo))
             {
-                this.typeName = "sqoDB.MetaObjects.RawdataInfo";
-                this.type = type;
+                typeName = "sqoDB.MetaObjects.RawdataInfo";
+                Type = type;
             }
-            else if (type == typeof(sqoDB.Indexes.IndexInfo2))
+            else if (type == typeof(IndexInfo2))
             {
-                this.typeName = "sqoDB.Indexes.IndexInfo2";
-                this.type = type;
+                typeName = "sqoDB.Indexes.IndexInfo2";
+                Type = type;
             }
-            else if(type.IsGenericType() && type.GetGenericTypeDefinition()==typeof(sqoDB.Indexes.BTreeNode<>))
+            else if (type.IsGenericType() && type.GetGenericTypeDefinition() == typeof(BTreeNode<>))
             {
-                this.typeName = type.Namespace + "." + type.Name;
-                AddGenericsInfo(type, ref this.typeName);
-                this.type = type;
+                typeName = type.Namespace + "." + type.Name;
+                AddGenericsInfo(type, ref typeName);
+                Type = type;
             }
-            
+
             else
             {
-                
-                this.type = type;
+                Type = type;
 #if SILVERLIGHT
 			string tName = type.AssemblyQualifiedName;
 #else
 
-                string tName = BuildTypeName(type);
+                var tName = BuildTypeName(type);
 #endif
 
-                this.typeName = tName;
+                typeName = tName;
             }
-          
-		}
+        }
 
-        
-		public SqoTypeInfo()
-		{
 
-		}
+        public SqoTypeInfo()
+        {
+        }
+
+        public string TypeName
+        {
+            get => typeName;
+            set => typeName = value;
+        }
+
+        public Type Type { get; set; }
+
+        public TypeHeader Header { get; } = new TypeHeader();
+
+        public string FileNameForManager { get; set; }
+
         private string BuildTypeName(Type type)
         {
-            
-            string onlyTypeName = type.Namespace+"."+type.Name;
+            var onlyTypeName = type.Namespace + "." + type.Name;
             AddGenericsInfo(type, ref onlyTypeName);
 
-            #if SILVERLIGHT
+#if SILVERLIGHT
             string assemblyName = type.Assembly.FullName.Split(',')[0];
 #elif WinRT
             string assemblyName = type.GetTypeInfo().Assembly.GetName().Name;
 #else
-            string assemblyName = type.Assembly.GetName().Name;
+            var assemblyName = type.Assembly.GetName().Name;
 #endif
 
-            string[] tNames = new string[] { onlyTypeName, assemblyName };
+            string[] tNames = { onlyTypeName, assemblyName };
 
             return tNames[0] + ", " + tNames[1];
-
         }
-        private void AddGenericsInfo(System.Type type, ref string onlyTypeName)
+
+        private void AddGenericsInfo(Type type, ref string onlyTypeName)
         {
             if (type.IsGenericType())
             {
-                Type[] gParams = type.GetGenericArguments();
-                StringBuilder builder = new StringBuilder(onlyTypeName);
+                var gParams = type.GetGenericArguments();
+                var builder = new StringBuilder(onlyTypeName);
                 builder.Append("[");
-                for (int i = 0; i < gParams.Length; ++i)
+                for (var i = 0; i < gParams.Length; ++i)
                 {
                     if (i > 0) builder.Append(", ");
                     builder.Append("[");
                     builder.Append(BuildTypeName(gParams[i]));
                     builder.Append("]");
                 }
+
                 builder.Append("]");
                 onlyTypeName = builder.ToString();
             }
-
         }
-		private string typeName;
-
-		public string TypeName
-		{
-			get { return typeName; }
-			set { typeName = value; }
-		}
-        public Type Type
-        {
-            get { return type; }
-            set { type = value; }
-        }
-        public List<FieldSqoInfo> Fields = new List<FieldSqoInfo>();
-
-        private TypeHeader header=new TypeHeader();
-        public TypeHeader Header
-        {
-            get { return header; }
-        }
-        public List<FieldSqoInfo> UniqueFields = new List<FieldSqoInfo>();
-        public List<FieldSqoInfo> IndexedFields = new List<FieldSqoInfo>();
-
-		public bool IsOld;
-        string fileNameForManager;
-        public string FileNameForManager
-        {
-            get { return this.fileNameForManager; }
-            set { this.fileNameForManager = value; }
-        }
-	
-	}
+    }
 }

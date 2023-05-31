@@ -25,204 +25,205 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-using System.Reflection;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace System.Linq.jvm
 {
+    internal sealed class Runner
+    {
+        private const BindingFlags method_flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
 
-	sealed class Runner {
+        private static readonly Type VoidMarker = typeof(VoidTypeMarker);
+        private static readonly MethodInfo[] delegates = new MethodInfo [5];
+        private readonly ExpressionInterpreter interpreter;
 
-		sealed class VoidTypeMarker {}
+        private readonly LambdaExpression lambda;
 
-		static readonly Type VoidMarker = typeof (VoidTypeMarker);
-		static readonly MethodInfo [] delegates = new MethodInfo [5];
-		const BindingFlags method_flags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+        static Runner()
+        {
+            foreach (var method in typeof(Runner).GetMethods(method_flags).Where(m => m.Name == "GetDelegate"))
+                delegates[method.GetGenericArguments().Length - 1] = method;
+        }
 
-		readonly LambdaExpression lambda;
-		readonly ExpressionInterpreter interpreter;
+        public Runner(LambdaExpression lambda)
+        {
+            this.lambda = lambda;
+        }
 
-		static Runner ()
-		{
-			foreach (var method in typeof (Runner).GetMethods (method_flags).Where (m => m.Name == "GetDelegate"))
-				delegates [method.GetGenericArguments ().Length - 1] = method;
-		}
+        public Runner(LambdaExpression lambda, ExpressionInterpreter interpreter)
+        {
+            this.lambda = lambda;
+            this.interpreter = interpreter;
+        }
 
-		public Runner (LambdaExpression lambda)
-		{
-			this.lambda = lambda;
-		}
+        public Delegate CreateDelegate()
+        {
+            var types = GetGenericSignature();
+            var creator = delegates[types.Length - 1].MakeGenericMethod(types);
 
-		public Runner (LambdaExpression lambda, ExpressionInterpreter interpreter)
-		{
-			this.lambda = lambda;
-			this.interpreter = interpreter;
-		}
+            return (Delegate)creator.Invoke(this, new object [0]);
+        }
 
-		public Delegate CreateDelegate ()
-		{
-			var types = GetGenericSignature ();
-			var creator = delegates [types.Length - 1].MakeGenericMethod (types);
+        private Type[] GetGenericSignature()
+        {
+            var count = lambda.Parameters.Count;
+            var types = new Type [count + 1];
 
-			return (Delegate) creator.Invoke (this, new object [0]);
-		}
+            var return_type = lambda.GetReturnType();
+            if (return_type == typeof(void))
+                return_type = VoidMarker;
 
-		Type [] GetGenericSignature ()
-		{
-			var count = lambda.Parameters.Count;
-			var types = new Type [count + 1];
+            types[count] = return_type;
+            for (var i = 0; i < count; i++) types[i] = lambda.Parameters[i].Type;
 
-			var return_type = lambda.GetReturnType ();
-			if (return_type == typeof (void))
-				return_type = VoidMarker;
+            return types;
+        }
 
-			types [count] = return_type;
-			for (int i = 0; i < count; i++) {
-				types [i] = lambda.Parameters [i].Type;
-			}
+        private object Run(object[] arguments)
+        {
+            var interpreter = this.interpreter ?? new ExpressionInterpreter(lambda);
 
-			return types;
-		}
+            return interpreter.Interpret(lambda, arguments);
+        }
 
-		object Run (object [] arguments)
-		{
-			var interpreter = this.interpreter ?? new ExpressionInterpreter (lambda);
+        private MethodInfo GetActionRunner(params Type[] types)
+        {
+            return GetRunner("ActionRunner", types);
+        }
 
-			return interpreter.Interpret (lambda, arguments);
-		}
+        private MethodInfo GetFuncRunner(params Type[] types)
+        {
+            return GetRunner("FuncRunner", types);
+        }
 
-		MethodInfo GetActionRunner (params Type [] types)
-		{
-			return GetRunner ("ActionRunner", types);
-		}
+        private MethodInfo GetRunner(string name, Type[] type_arguments)
+        {
+            var method = GetMethod(name, type_arguments.Length);
+            if (method == null)
+                throw new InvalidOperationException();
 
-		MethodInfo GetFuncRunner (params Type [] types)
-		{
-			return GetRunner ("FuncRunner", types);
-		}
+            if (type_arguments.Length == 0)
+                return method;
 
-		MethodInfo GetRunner (string name, Type [] type_arguments)
-		{
-			var method = GetMethod (name, type_arguments.Length);
-			if (method == null)
-				throw new InvalidOperationException ();
+            return method.MakeGenericMethod(type_arguments);
+        }
 
-			if (type_arguments.Length == 0)
-				return method;
+        private MethodInfo GetMethod(string name, int parameters)
+        {
+            foreach (var method in GetType().GetMethods(method_flags))
+            {
+                if (method.Name != name)
+                    continue;
 
-			return method.MakeGenericMethod (type_arguments);
-		}
+                if (method.GetGenericArguments().Length != parameters)
+                    continue;
 
-		MethodInfo GetMethod (string name, int parameters)
-		{
-			foreach (var method in GetType ().GetMethods (method_flags)) {
-				if (method.Name != name)
-					continue;
+                return method;
+            }
 
-				if (method.GetGenericArguments ().Length != parameters)
-					continue;
+            return null;
+        }
 
-				return method;
-			}
+        private Delegate CreateDelegate(MethodInfo runner)
+        {
+            return Delegate.CreateDelegate(lambda.Type, this, runner);
+        }
 
-			return null;
-		}
+        // all methods below are called through reflection
 
-		Delegate CreateDelegate (MethodInfo runner)
-		{
-			return Delegate.CreateDelegate (lambda.Type, this, runner);
-		}
+        private Delegate GetDelegate<TResult>()
+        {
+            if (typeof(TResult) == VoidMarker)
+                return CreateDelegate(GetActionRunner(Type.EmptyTypes));
 
-		// all methods below are called through reflection
+            return CreateDelegate(GetFuncRunner(typeof(TResult)));
+        }
 
-		Delegate GetDelegate<TResult> ()
-		{
-			if (typeof (TResult) == VoidMarker)
-				return CreateDelegate (GetActionRunner (Type.EmptyTypes));
+        public TResult FuncRunner<TResult>()
+        {
+            return (TResult)Run(new object [0]);
+        }
 
-			return CreateDelegate (GetFuncRunner (typeof (TResult)));
-		}
+        public void ActionRunner()
+        {
+            Run(new object [0]);
+        }
 
-		public TResult FuncRunner<TResult> ()
-		{
-			return (TResult) Run (new object [0]);
-		}
+        private Delegate GetDelegate<T, TResult>()
+        {
+            if (typeof(TResult) == VoidMarker)
+                return CreateDelegate(GetActionRunner(typeof(T)));
 
-		public void ActionRunner ()
-		{
-			Run (new object [0]);
-		}
+            return CreateDelegate(GetFuncRunner(typeof(T), typeof(TResult)));
+        }
 
-		Delegate GetDelegate<T, TResult> ()
-		{
-			if (typeof (TResult) == VoidMarker)
-				return CreateDelegate (GetActionRunner (typeof (T)));
+        public TResult FuncRunner<T, TResult>(T arg)
+        {
+            return (TResult)Run(new object[] { arg });
+        }
 
-			return CreateDelegate (GetFuncRunner (typeof (T), typeof (TResult)));
-		}
+        public void ActionRunner<T>(T arg)
+        {
+            Run(new object[] { arg });
+        }
 
-		public TResult FuncRunner<T, TResult> (T arg)
-		{
-			return (TResult) Run (new object [] { arg });
-		}
+        public Delegate GetDelegate<T1, T2, TResult>()
+        {
+            if (typeof(TResult) == VoidMarker)
+                return CreateDelegate(GetActionRunner(typeof(T1), typeof(T2)));
 
-		public void ActionRunner<T> (T arg)
-		{
-			Run (new object [] { arg });
-		}
+            return CreateDelegate(GetFuncRunner(typeof(T1), typeof(T2), typeof(TResult)));
+        }
 
-		public Delegate GetDelegate<T1, T2, TResult> ()
-		{
-			if (typeof (TResult) == VoidMarker)
-				return CreateDelegate (GetActionRunner (typeof (T1), typeof (T2)));
+        public TResult FuncRunner<T1, T2, TResult>(T1 arg1, T2 arg2)
+        {
+            return (TResult)Run(new object[] { arg1, arg2 });
+        }
 
-			return CreateDelegate (GetFuncRunner (typeof (T1), typeof (T2), typeof (TResult)));
-		}
+        public void ActionRunner<T1, T2>(T1 arg1, T2 arg2)
+        {
+            Run(new object[] { arg1, arg2 });
+        }
 
-		public TResult FuncRunner<T1, T2, TResult> (T1 arg1, T2 arg2)
-		{
-			return (TResult) Run (new object [] { arg1, arg2 });
-		}
+        private Delegate GetDelegate<T1, T2, T3, TResult>()
+        {
+            if (typeof(TResult) == VoidMarker)
+                return CreateDelegate(GetActionRunner(typeof(T1), typeof(T2), typeof(T3)));
 
-		public void ActionRunner<T1, T2> (T1 arg1, T2 arg2)
-		{
-			Run (new object [] { arg1, arg2 });
-		}
+            return CreateDelegate(GetFuncRunner(typeof(T1), typeof(T2), typeof(T3), typeof(TResult)));
+        }
 
-		Delegate GetDelegate<T1, T2, T3, TResult> ()
-		{
-			if (typeof (TResult) == VoidMarker)
-				return CreateDelegate (GetActionRunner (typeof (T1), typeof (T2), typeof (T3)));
+        public TResult FuncRunner<T1, T2, T3, TResult>(T1 arg1, T2 arg2, T3 arg3)
+        {
+            return (TResult)Run(new object[] { arg1, arg2, arg3 });
+        }
 
-			return CreateDelegate (GetFuncRunner (typeof (T1), typeof (T2), typeof (T3), typeof (TResult)));
-		}
+        public void ActionRunner<T1, T2, T3>(T1 arg1, T2 arg2, T3 arg3)
+        {
+            Run(new object[] { arg1, arg2, arg3 });
+        }
 
-		public TResult FuncRunner<T1, T2, T3, TResult> (T1 arg1, T2 arg2, T3 arg3)
-		{
-			return (TResult) Run (new object [] { arg1, arg2, arg3 });
-		}
+        private Delegate GetDelegate<T1, T2, T3, T4, TResult>()
+        {
+            if (typeof(TResult) == VoidMarker)
+                return CreateDelegate(GetActionRunner(typeof(T1), typeof(T2), typeof(T3), typeof(T4)));
 
-		public void ActionRunner<T1, T2, T3> (T1 arg1, T2 arg2, T3 arg3)
-		{
-			Run (new object [] { arg1, arg2, arg3 });
-		}
+            return CreateDelegate(GetFuncRunner(typeof(T1), typeof(T2), typeof(T3), typeof(T4), typeof(TResult)));
+        }
 
-		Delegate GetDelegate<T1, T2, T3, T4, TResult> ()
-		{
-			if (typeof (TResult) == VoidMarker)
-				return CreateDelegate (GetActionRunner (typeof (T1), typeof (T2), typeof (T3), typeof (T4)));
+        public TResult FuncRunner<T1, T2, T3, T4, TResult>(T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+        {
+            return (TResult)Run(new object[] { arg1, arg2, arg3, arg4 });
+        }
 
-			return CreateDelegate (GetFuncRunner (typeof (T1), typeof (T2), typeof (T3), typeof (T4), typeof (TResult)));
-		}
+        public void ActionRunner<T1, T2, T3, T4>(T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+        {
+            Run(new object[] { arg1, arg2, arg3, arg4 });
+        }
 
-		public TResult FuncRunner<T1, T2, T3, T4, TResult> (T1 arg1, T2 arg2, T3 arg3, T4 arg4)
-		{
-			return (TResult) Run (new object [] { arg1, arg2, arg3, arg4 });
-		}
-
-		public void ActionRunner<T1, T2, T3, T4> (T1 arg1, T2 arg2, T3 arg3, T4 arg4)
-		{
-			Run (new object [] { arg1, arg2, arg3, arg4 });
-		}
-	}
+        private sealed class VoidTypeMarker
+        {
+        }
+    }
 }

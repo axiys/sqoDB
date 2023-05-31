@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 #if ASYNC
 using System.Threading.Tasks;
 #endif
+
 namespace sqoDB.Queries
 {
-    interface ICriteria
+    internal interface ICriteria
     {
         List<int> GetOIDs();
 #if ASYNC

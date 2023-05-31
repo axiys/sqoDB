@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace sqoDB.MetaObjects
+﻿namespace sqoDB.MetaObjects
 {
-    class ArrayInfo
+    internal class ArrayInfo
     {
+        public int ElementTypeId; //used only if is jagged array
         public int NrElements;
-        public int ElementTypeId;//used only if is jagged array
         public byte[] rawArray;
     }
 }
